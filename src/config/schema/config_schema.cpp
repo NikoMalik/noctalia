@@ -1789,6 +1789,7 @@ namespace noctalia::config::schema {
   const Schema<ShellConfig>& shellSchema() {
     static const Schema<ShellConfig> s = {
         field(&ShellConfig::cornerRadiusScale, "corner_radius_scale", kCornerRadiusScaleRange),
+        field(&ShellConfig::pixelCorners, "pixel_corners", kPixelCornersRange),
         field(&ShellConfig::buttonBorders, "button_borders"),
         field(&ShellConfig::inputBorders, "input_borders"),
         field(&ShellConfig::popupBorders, "popup_borders"),

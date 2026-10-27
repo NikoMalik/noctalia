@@ -38,6 +38,7 @@ private:
   GLint m_tintLocation = -1;
   GLint m_opacityLocation = -1;
   GLint m_radiusLocation = -1;
+  GLint m_pixelLocation = -1;
   GLint m_borderColorLocation = -1;
   GLint m_borderWidthLocation = -1;
   GLint m_texSizeLocation = -1;

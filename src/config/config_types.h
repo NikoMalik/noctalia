@@ -1336,6 +1336,7 @@ struct ShellConfig {
   };
 
   float cornerRadiusScale = 1.0F;
+  float pixelCorners = 0.0F;
   bool buttonBorders = true;
   bool inputBorders = true;
   bool popupBorders = true;

@@ -58,6 +58,7 @@
 #include "pipewire/wireplumber_mixer.h"
 #include "render/animation/motion_service.h"
 #include "render/backend/render_backend.h"
+#include "render/core/render_styles.h"
 #include "render/core/texture_manager.h"
 #include "render/text/font_weight_catalog.h"
 #include "scripting/plugin_ipc.h"
@@ -556,9 +557,12 @@ void Application::initStyleThemeAndWayland() {
   };
   auto applyStyleConfig = [this, lastCornerRadiusScale = std::numeric_limits<float>::quiet_NaN()]() mutable {
     const float corner = m_configService.config().shell.cornerRadiusScale;
+    const float pixel = m_configService.config().shell.pixelCorners;
     const bool cornerChanged =
-        std::isfinite(lastCornerRadiusScale) && std::abs(corner - lastCornerRadiusScale) > 1.0e-4F;
+        (std::isfinite(lastCornerRadiusScale) && std::abs(corner - lastCornerRadiusScale) > 1.0e-4F)
+        || pixel != g_pixelCornerSize;
     Style::setCornerRadiusScale(corner);
+    g_pixelCornerSize = pixel;
     Style::setButtonBordersEnabled(m_configService.config().shell.buttonBorders);
     Style::setInputBordersEnabled(m_configService.config().shell.inputBorders);
     Style::setPopupBordersEnabled(m_configService.config().shell.popupBorders);

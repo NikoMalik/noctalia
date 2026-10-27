@@ -60,7 +60,27 @@ uniform vec2 u_shadow_exclusion_size;
 uniform vec4 u_shadow_exclusion_corner_shapes;
 uniform vec4 u_shadow_exclusion_logical_inset;
 uniform vec4 u_shadow_exclusion_radii;
+uniform float u_pixel;
 varying vec2 v_pixel;
+
+float pixel_rect_distance(vec2 centered, vec2 half_size, float radius) {
+    vec2 q = abs(centered) - half_size;
+    float box = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+    float steps = floor(radius / u_pixel + 0.5);
+    vec2 c = -q;
+    if (steps < 1.0 || c.x >= steps * u_pixel || c.y >= steps * u_pixel) {
+        return box;
+    }
+    float stairs = 1e5;
+    for (int i = 0; i <= 64; i++) {
+        if (float(i) > steps) {
+            break;
+        }
+        vec2 d = vec2(float(i), steps - float(i)) * u_pixel - c;
+        stairs = min(stairs, length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
+    }
+    return max(box, stairs);
+}
 
 float rounded_rect_distance(vec2 point, vec2 size, vec4 radii) {
     vec2 half_size = size * 0.5;
@@ -68,6 +88,9 @@ float rounded_rect_distance(vec2 point, vec2 size, vec4 radii) {
     float r = centered.x < 0.0
         ? (centered.y < 0.0 ? radii.x : radii.w)
         : (centered.y < 0.0 ? radii.y : radii.z);
+    if (u_pixel > 0.0) {
+        return pixel_rect_distance(centered, half_size, r);
+    }
     vec2 q = abs(centered) - (half_size - vec2(r));
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
@@ -400,6 +423,7 @@ void RectProgram::ensureInitialized() {
   m_shadowExclusionLogicalInsetLocation = glGetUniformLocation(m_program.id(), "u_shadow_exclusion_logical_inset");
   m_shadowExclusionRadiiLocation = glGetUniformLocation(m_program.id(), "u_shadow_exclusion_radii");
   m_transformLocation = glGetUniformLocation(m_program.id(), "u_transform");
+  m_pixelLocation = glGetUniformLocation(m_program.id(), "u_pixel");
 
   if (m_positionLocation < 0
       || m_surfaceSizeLocation < 0
@@ -430,7 +454,8 @@ void RectProgram::ensureInitialized() {
       || m_shadowExclusionCornerShapesLocation < 0
       || m_shadowExclusionLogicalInsetLocation < 0
       || m_shadowExclusionRadiiLocation < 0
-      || m_transformLocation < 0) {
+      || m_transformLocation < 0
+      || m_pixelLocation < 0) {
     throw std::runtime_error("failed to query rounded-rect shader locations");
   }
 }
@@ -467,6 +492,7 @@ void RectProgram::destroy() {
   m_shadowExclusionLogicalInsetLocation = -1;
   m_shadowExclusionRadiiLocation = -1;
   m_transformLocation = -1;
+  m_pixelLocation = -1;
 }
 
 void RectProgram::abandon() noexcept { m_program.abandon(); }
@@ -550,6 +576,7 @@ void RectProgram::draw(
       style.shadowExclusionRadius.br, style.shadowExclusionRadius.bl
   );
   glUniformMatrix3fv(m_transformLocation, 1, GL_FALSE, quadTransform.m.data());
+  glUniform1f(m_pixelLocation, g_pixelCornerSize);
   const auto posAttr = static_cast<GLuint>(m_positionLocation);
   glVertexAttribPointer(posAttr, 2, GL_FLOAT, GL_FALSE, 0, vertices.data());
   glEnableVertexAttribArray(posAttr);

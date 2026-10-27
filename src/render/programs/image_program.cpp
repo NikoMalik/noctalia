@@ -65,6 +65,7 @@ uniform int u_alpha_mask;
 uniform float u_opacity;
 uniform vec2 u_size;
 uniform float u_radius;
+uniform float u_pixel;
 uniform vec4 u_border_color;
 uniform float u_border_width;
 uniform int u_scrim_enabled;
@@ -77,7 +78,29 @@ uniform vec4 u_scrim_color3;
 varying vec2 v_texcoord;
 varying vec2 v_local;
 
+float pixel_rect_distance(vec2 centered, vec2 half_size, float radius) {
+    vec2 q = abs(centered) - half_size;
+    float box = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+    float steps = floor(radius / u_pixel + 0.5);
+    vec2 c = -q;
+    if (steps < 1.0 || c.x >= steps * u_pixel || c.y >= steps * u_pixel) {
+        return box;
+    }
+    float stairs = 1e5;
+    for (int i = 0; i <= 64; i++) {
+        if (float(i) > steps) {
+            break;
+        }
+        vec2 d = vec2(float(i), steps - float(i)) * u_pixel - c;
+        stairs = min(stairs, length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
+    }
+    return max(box, stairs);
+}
+
 float rounded_rect_distance(vec2 centered, vec2 half_size, float radius) {
+    if (u_pixel > 0.0) {
+        return pixel_rect_distance(centered, half_size, radius);
+    }
     vec2 q = abs(centered) - (half_size - vec2(radius));
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
 }
@@ -172,6 +195,7 @@ void ImageProgram::ensureInitialized() {
   m_alphaMaskLocation = glGetUniformLocation(m_program.id(), "u_alpha_mask");
   m_opacityLocation = glGetUniformLocation(m_program.id(), "u_opacity");
   m_radiusLocation = glGetUniformLocation(m_program.id(), "u_radius");
+  m_pixelLocation = glGetUniformLocation(m_program.id(), "u_pixel");
   m_borderColorLocation = glGetUniformLocation(m_program.id(), "u_border_color");
   m_borderWidthLocation = glGetUniformLocation(m_program.id(), "u_border_width");
   m_texSizeLocation = glGetUniformLocation(m_program.id(), "u_tex_size");
@@ -195,6 +219,7 @@ void ImageProgram::ensureInitialized() {
       || m_alphaMaskLocation < 0
       || m_opacityLocation < 0
       || m_radiusLocation < 0
+      || m_pixelLocation < 0
       || m_borderColorLocation < 0
       || m_borderWidthLocation < 0
       || m_texSizeLocation < 0
@@ -223,6 +248,7 @@ void ImageProgram::destroy() {
   m_alphaMaskLocation = -1;
   m_opacityLocation = -1;
   m_radiusLocation = -1;
+  m_pixelLocation = -1;
   m_borderColorLocation = -1;
   m_borderWidthLocation = -1;
   m_texSizeLocation = -1;
@@ -265,6 +291,7 @@ void ImageProgram::draw(
   glUniform1i(m_alphaMaskLocation, alphaMaskTint ? 1 : 0);
   glUniform1f(m_opacityLocation, opacity);
   glUniform1f(m_radiusLocation, std::max(0.0F, radius));
+  glUniform1f(m_pixelLocation, g_pixelCornerSize);
   glUniform4f(m_borderColorLocation, borderColor.r, borderColor.g, borderColor.b, borderColor.a);
   glUniform1f(m_borderWidthLocation, std::max(0.0F, borderWidth));
   glUniform2f(m_texSizeLocation, textureWidth, textureHeight);

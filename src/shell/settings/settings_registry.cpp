@@ -604,6 +604,12 @@ namespace settings {
         "rounded corners radius"
     ));
     entries.push_back(makeEntry(
+        SettingsSection::Appearance, "interface", tr("settings.schema.appearance.pixel-corners.label"),
+        tr("settings.schema.appearance.pixel-corners.description"), {"shell", "pixel_corners"},
+        sliderFor(cfg.shell.pixelCorners, noctalia::config::schema::kPixelCornersRange, false),
+        "pixel corners staircase retro"
+    ));
+    entries.push_back(makeEntry(
         SettingsSection::Appearance, "interface", tr("settings.schema.appearance.app-icon-colorize.label"),
         tr("settings.schema.appearance.app-icon-colorize.description"), {"shell", "app_icon_colorize"},
         ToggleSetting{cfg.shell.appIconColorize}, "tint all application icons"

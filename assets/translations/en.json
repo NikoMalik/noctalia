@@ -1914,6 +1914,10 @@
           "description": "Scale corner radius across shell UI containers and controls",
           "label": "Corner Roundness"
         },
+        "pixel-corners": {
+          "description": "Cut corners into hard pixel steps of this size, 0 keeps smooth corners",
+          "label": "Pixel Corners"
+        },
         "custom-palette": {
           "description": "Choose a palette from ~/.config/noctalia/palettes/",
           "label": "Custom Palette",

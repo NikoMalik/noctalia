@@ -5,6 +5,8 @@
 #include <array>
 #include <cstdint>
 
+inline float g_pixelCornerSize = 0.0F;
+
 enum class FillMode {
   None,
   Solid,

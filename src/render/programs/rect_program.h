@@ -56,4 +56,5 @@ private:
   GLint m_shadowExclusionLogicalInsetLocation = -1;
   GLint m_shadowExclusionRadiiLocation = -1;
   GLint m_transformLocation = -1;
+  GLint m_pixelLocation = -1;
 };

@@ -25,6 +25,7 @@ key_file   = ""               # absolute path; required only when key_source = "
 
 [shell]
 corner_radius_scale   = 1.0             # 0 = square, 1 = default, 2 = extra rounded
+pixel_corners         = 0               # staircase corners, step size in logical px, 0 = smooth
 button_borders        = true            # draw outlines around buttons throughout the shell
 input_borders         = true            # draw outlines around text fields and other inputs
 popup_borders         = true            # draw outlines around popups and dropdowns (dialogs always have outlines)
@@ -283,6 +284,7 @@ Notes:
 - Clipboard history keeps PNG, JPEG, JPEG XL, AVIF, HEIC, and HEIF images, preferring PNG when an app offers several formats. Entries are stored and pasted back byte for byte with their original MIME type. Previewing AVIF, HEIC, and HEIF needs libheif installed at runtime (HEIC also needs an HEVC decoder plugin; on Fedora that is RPM Fusion's `libheif-freeworld`). Without it the entry shows a generic image icon but is still listed and pasteable.
 
 - `corner_radius_scale` scales rounded corners across shell surfaces: `0` = square, `1` = default, `2` = extra rounded.
+- `pixel_corners` draws corners as hard pixel steps instead of smooth curves, like niri pixel corners. The value is the step size in logical px (`0`-`8`), the number of steps comes from each corner radius. `0` keeps smooth corners.
 
 - `button_borders`: when `true` (default), buttons use the outline defined by their built-in or custom style. Set it to `false` for borderless buttons throughout the shell. Other controls, cards, panels, and explicitly configured raw borders are unaffected. Toggle in **Settings → Appearance → Borders**.
 
