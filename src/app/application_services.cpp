@@ -133,7 +133,7 @@ namespace {
     if (process::commandExists("gsettings")) {
       std::string cmd = "gsettings set org.gnome.desktop.interface color-scheme \"";
       cmd += pref;
-      cmd += "\"";
+      cmd += '\"';
       (void)process::runAsync(cmd);
     } else if (process::commandExists("dconf")) {
       std::string cmd = "dconf write /org/gnome/desktop/interface/color-scheme \"'";
@@ -149,7 +149,7 @@ void Application::scheduleNotificationShellRefresh() {
     return;
   }
   m_notificationShellRefreshScheduled = true;
-  DeferredCall::callLater([this]() {
+  DeferredCall::callLater([this] {
     m_notificationShellRefreshScheduled = false;
     m_bar.refresh();
     if (m_panelManager.isOpenPanel("control-center")) {
@@ -244,7 +244,7 @@ void Application::installNotificationBusNameWatch() {
         if (name != notification_dbus::kFreedesktopNotificationsBusName) {
           return;
         }
-        DeferredCall::callLater([this]() {
+        DeferredCall::callLater([this] {
           m_notificationDaemonInitFailed = false;
           syncNotificationDaemon();
         });
@@ -277,7 +277,7 @@ void Application::installSecretServiceNameWatch() {
         m_storageKeyAutoRetried = false;
         m_calendarCredentialAutoRetried = false;
         kLog.info("secret service provider appeared on {}", kSecretServiceBusName);
-        DeferredCall::callLater([this]() {
+        DeferredCall::callLater([this] {
           const bool retryWillProbeCollection =
               m_storageKeyProvider.state() == security::StorageKeyState::DeniedOrLocked;
           retrySecretServiceConsumers();
@@ -324,7 +324,7 @@ void Application::installSecretServiceCollectionWatch() {
     });
     // A collection appearing or changing is our cue that the default one may have just unlocked.
     const auto onCollectionEvent = [this](const sdbus::ObjectPath& /*collection*/) {
-      DeferredCall::callLater([this]() { onSecretServiceCollectionChanged(); });
+      DeferredCall::callLater([this] { onSecretServiceCollectionChanged(); });
     };
     m_secretServiceCollectionWatchProxy->uponSignal("CollectionChanged")
         .onInterface(kSecretServiceInterface)
@@ -336,7 +336,7 @@ void Application::installSecretServiceCollectionWatch() {
     // The collection can unlock during startup before this watch exists (the first lookup then
     // loses that race), and that transition emits no further signal. Check the current state once
     // so a consumer that already gave up is re-driven immediately.
-    DeferredCall::callLater([this]() { onSecretServiceCollectionChanged(); });
+    DeferredCall::callLater([this] { onSecretServiceCollectionChanged(); });
   } catch (const sdbus::Error& e) {
     kLog.debug("secret service collection watch setup failed: {}", e.what());
     m_secretServiceCollectionProbe.reset();
@@ -363,7 +363,7 @@ void Application::retrySecretServiceConsumers(bool defaultCollectionUnlocked) {
           || (storageKeyState == security::StorageKeyState::DeniedOrLocked && defaultCollectionUnlocked))) {
     m_storageKeyAutoRetried = true;
     kLog.info("secret service is running; reopening encrypted storage");
-    DeferredCall::callLater([this]() { m_storageKeyProvider.retry(); });
+    DeferredCall::callLater([this] { m_storageKeyProvider.retry(); });
   } else if (!m_storageKeyAutoRetried && storageKeyState == security::StorageKeyState::DeniedOrLocked) {
     onSecretServiceCollectionChanged();
   }
@@ -374,7 +374,7 @@ void Application::retrySecretServiceConsumers(bool defaultCollectionUnlocked) {
   if (!m_calendarCredentialAutoRetried && calendarRetryNeeded) {
     m_calendarCredentialAutoRetried = true;
     kLog.info("secret service is running; reopening calendar credentials");
-    DeferredCall::callLater([this]() { m_calendarService.retryCredentialMigration(); });
+    DeferredCall::callLater([this] { m_calendarService.retryCredentialMigration(); });
   }
 }
 
@@ -421,7 +421,7 @@ void Application::syncPolkitAgent() {
   m_polkitAgent->setReadyCallback([this](bool ok, const std::string& error) {
     if (!ok) {
       kLog.warn("polkit agent disabled: {}", error);
-      DeferredCall::callLater([this, error]() {
+      DeferredCall::callLater([this, error] {
         if (polkit_session::isNoSessionForPidError(error)) {
           notify::error(
               "Noctalia", i18n::tr("notifications.internal.polkit-agent"),
@@ -435,7 +435,7 @@ void Application::syncPolkitAgent() {
     }
     kLog.info("polkit authentication agent active");
   });
-  m_polkitAgent->setStateCallback([this]() {
+  m_polkitAgent->setStateCallback([this] {
     if (m_polkitAgent == nullptr) {
       return;
     }
@@ -444,7 +444,7 @@ void Application::syncPolkitAgent() {
       // (pkexec → systemd-enable, etc.) can reuse the panel instead of racing
       // teardown.
       if (m_panelManager.isOpenPanel("polkit")) {
-        m_polkitIdleCloseTimer.start(std::chrono::milliseconds(150), [this]() {
+        m_polkitIdleCloseTimer.start(std::chrono::milliseconds(150), [this] {
           if (m_polkitAgent != nullptr && !m_polkitAgent->hasPendingRequest() && m_panelManager.isOpenPanel("polkit")) {
             m_panelManager.close();
           }
@@ -475,7 +475,7 @@ void Application::syncScreenTimeService() {
 
 void Application::syncClipboardService() {
   const bool enabled = m_configService.config().shell.clipboardEnabled;
-  const auto shouldRefreshControlCenter = [this]() { return m_panelManager.isOpenPanel("control-center"); };
+  const auto shouldRefreshControlCenter = [this] { return m_panelManager.isOpenPanel("control-center"); };
 
   // The live clipboard transport (read current selection + set selection)
   // stays active regardless of config so basic copy/paste keeps working in
@@ -515,14 +515,14 @@ void Application::initServices() {
   if (!security::initializeSecurityPrimitives()) {
     kLog.error("libsodium initialization failed; encrypted persistence is unavailable");
   }
-  m_storageKeyProvider.setChangeCallback([this]() {
+  m_storageKeyProvider.setChangeCallback([this] {
     m_clipboardService.syncPersistence();
     m_calendarService.syncCachePersistence();
     retrySecretServiceConsumers();
   });
   syncStorageKeyProvider();
   m_configService.addReloadCallback(
-      [this]() {
+      [this] {
         if (m_configService.lastChange().storage) {
           syncStorageKeyProvider();
         }
@@ -550,12 +550,12 @@ void Application::initStyleThemeAndWayland() {
   std::signal(SIGTERM, signal_handler);
   std::signal(SIGINT, signal_handler);
 
-  auto applyMotionConfig = [this]() {
+  auto applyMotionConfig = [this] {
     auto& motion = MotionService::instance();
     motion.setSpeed(m_configService.config().shell.animation.speed);
     motion.setEnabled(m_configService.config().shell.animation.enabled);
   };
-  auto applyStyleConfig = [this, lastCornerRadiusScale = std::numeric_limits<float>::quiet_NaN()]() mutable {
+  auto applyStyleConfig = [this, lastCornerRadiusScale = std::numeric_limits<float>::quiet_NaN()] mutable {
     const float corner = m_configService.config().shell.cornerRadiusScale;
     const float pixel = m_configService.config().shell.pixelCorners;
     const bool cornerChanged =
@@ -575,13 +575,13 @@ void Application::initStyleThemeAndWayland() {
       m_panelManager.requestLayout();
     }
   };
-  auto applyPasswordMaskStyle = [this]() {
+  auto applyPasswordMaskStyle = [this] {
     const auto style = m_configService.config().shell.passwordMaskStyle == PasswordMaskStyle::RandomIcons
         ? Input::PasswordMaskStyle::RandomIcons
         : Input::PasswordMaskStyle::CircleFilled;
     Input::setPasswordMaskStyle(style);
   };
-  auto applyInputConfig = [this]() {
+  auto applyInputConfig = [this] {
     Input::setReadlineShortcutsEnabled(m_configService.config().shell.readlineShortcuts);
   };
   applyMotionConfig();
@@ -594,13 +594,13 @@ void Application::initStyleThemeAndWayland() {
   m_configService.addReloadCallback(applyStyleConfig);
   m_configService.addReloadCallback(applyPasswordMaskStyle);
   m_configService.addReloadCallback(applyInputConfig);
-  m_configService.addReloadCallback([this]() {
+  m_configService.addReloadCallback([this] {
     m_httpClient.setOfflineMode(m_configService.config().shell.offlineMode);
     m_scriptApi.setConfigSnapshot(m_configService.configTable());
   });
-  m_configService.addReloadCallback([this]() { syncClipboardService(); });
-  m_configService.addReloadCallback([this]() { syncScreenTimeService(); });
-  m_communityPaletteService.setReadyCallback([this]() {
+  m_configService.addReloadCallback([this] { syncClipboardService(); });
+  m_configService.addReloadCallback([this] { syncScreenTimeService(); });
+  m_communityPaletteService.setReadyCallback([this] {
     // A refreshed catalog may carry a new md5 for the selected palette; re-resolve
     // so a stale cached palette gets re-downloaded and faded in.
     m_themeService.onConfigReload();
@@ -608,14 +608,14 @@ void Application::initStyleThemeAndWayland() {
   });
   m_communityPaletteService.sync();
   m_configService.addReloadCallback(
-      [this]() {
+      [this] {
         if (m_configService.lastChange().theme) {
           m_communityPaletteService.sync();
         }
       },
       "community-palette-sync"
   );
-  m_communityTemplateService.setReadyCallback([this]() {
+  m_communityTemplateService.setReadyCallback([this] {
     if (m_configService.config().theme.templates.enableCommunityTemplates) {
       m_themeService.onConfigReload();
       m_settingsWindow.onExternalOptionsChanged();
@@ -623,7 +623,7 @@ void Application::initStyleThemeAndWayland() {
   });
   m_communityTemplateService.sync(m_configService.config().theme.templates);
   m_configService.addReloadCallback(
-      [this]() {
+      [this] {
         if (m_configService.lastChange().theme) {
           m_communityTemplateService.sync(m_configService.config().theme.templates);
         }
@@ -635,13 +635,13 @@ void Application::initStyleThemeAndWayland() {
   // UI construction reads a translated string.
   i18n::Service::instance().init(m_configService.config().shell.lang);
   setDesktopEntryLanguage(i18n::Service::instance().requestedLanguage());
-  m_configService.addReloadCallback([this]() {
+  m_configService.addReloadCallback([this] {
     i18n::Service::instance().setLanguage(m_configService.config().shell.lang);
     setDesktopEntryLanguage(i18n::Service::instance().requestedLanguage());
   });
 
   // Apply theme before any UI constructs palette-dependent scene nodes.
-  auto syncScriptApiWallpaperDirectory = [this]() {
+  auto syncScriptApiWallpaperDirectory = [this] {
     // Wallpapers are a shell surface, so they follow Noctalia's own mode.
     const ThemeMode mode = m_themeService.isLightMode() ? ThemeMode::Light : ThemeMode::Dark;
     m_scriptApi.setWallpaperDirectory(
@@ -649,14 +649,14 @@ void Application::initStyleThemeAndWayland() {
     );
   };
 
-  auto syncScriptApiShellTimeFormats = [this]() {
+  auto syncScriptApiShellTimeFormats = [this] {
     m_scriptApi.setTimeFormat(m_configService.config().shell.timeFormat);
     m_scriptApi.setDateFormat(m_configService.config().shell.dateFormat);
   };
 
   // Publish the connected outputs to plugin scripts (noctalia.outputs()), refreshed on every
   // output change so the worker-thread binding reads a race-free copy.
-  m_syncScriptApiOutputs = [this]() {
+  m_syncScriptApiOutputs = [this] {
     std::vector<scripting::ScriptOutputInfo> infos;
     std::unordered_map<std::string, std::string> wallpaperPaths;
     wl_output* const focused = m_compositorPlatform.preferredInteractiveOutput();
@@ -778,7 +778,7 @@ void Application::initStyleThemeAndWayland() {
     // carry the write; sync the current mode directly.
     static bool lastSyncColorScheme = m_configService.config().theme.syncColorScheme;
     m_configService.addReloadCallback(
-        [this]() {
+        [this] {
           const bool current = m_configService.config().theme.syncColorScheme;
           if (current == lastSyncColorScheme) {
             return;
@@ -793,14 +793,14 @@ void Application::initStyleThemeAndWayland() {
   }
   syncScriptApiWallpaperDirectory();
   syncScriptApiShellTimeFormats();
-  m_configService.addReloadCallback([this]() { m_themeService.onConfigReload(); }, "theme");
+  m_configService.addReloadCallback([this] { m_themeService.onConfigReload(); }, "theme");
   m_configService.addReloadCallback(syncScriptApiWallpaperDirectory, "wallpaper");
   m_configService.addReloadCallback(syncScriptApiShellTimeFormats, "shell-time-formats");
   {
     static ShellAppIconColorizationSettings lastAppIconColorization =
         shellAppIconColorizationSettings(m_configService.config().shell);
     m_configService.addReloadCallback(
-        [this]() {
+        [this] {
           const auto current = shellAppIconColorizationSettings(m_configService.config().shell);
           if (current == lastAppIconColorization) {
             return;
@@ -818,7 +818,7 @@ void Application::initStyleThemeAndWayland() {
   m_compositorPlatform.initialize();
   m_screenTimeService.initialize(&m_compositorPlatform);
   syncScreenTimeService();
-  m_screenTimeService.setChangeCallback([this]() {
+  m_screenTimeService.setChangeCallback([this] {
     if (m_panelManager.isOpenPanel("control-center") && m_panelManager.isActivePanelContext("screen-time")) {
       m_panelManager.refresh();
     }
@@ -882,9 +882,9 @@ void Application::reconcileOutputSurfaces() {
 }
 
 void Application::initWaylandCallbacks() {
-  auto shouldRefreshControlCenter = [this]() { return m_panelManager.isOpenPanel("control-center"); };
+  auto shouldRefreshControlCenter = [this] { return m_panelManager.isOpenPanel("control-center"); };
 
-  m_wayland.setOutputChangeCallback([this]() {
+  m_wayland.setOutputChangeCallback([this] {
     if (m_syncScriptApiOutputs) {
       m_syncScriptApiOutputs();
     }
@@ -895,7 +895,7 @@ void Application::initWaylandCallbacks() {
     m_pluginServiceHost.onOutputChange();
     reconcileOutputSurfaces();
   });
-  m_clipboardService.setChangeCallback([this]() {
+  m_clipboardService.setChangeCallback([this] {
     m_scriptApi.setClipboardText(m_clipboardService.clipboardText());
     if (m_panelManager.isOpenPanel("clipboard")) {
       m_panelManager.refresh();
@@ -903,7 +903,7 @@ void Application::initWaylandCallbacks() {
   });
   m_scriptApi.setClipboardText(m_clipboardService.clipboardText());
   m_compositorPlatform.setWorkspaceAlertService(&m_workspaceAlertService);
-  m_compositorPlatform.setWorkspaceChangeCallback([this]() {
+  m_compositorPlatform.setWorkspaceChangeCallback([this] {
     // Clear alerts for the workspace the user just switched to. Limit to the
     // focused output so activity on one monitor doesn't dismiss alerts on
     // another; fall back to all outputs when no focused output is known.
@@ -917,7 +917,7 @@ void Application::initWaylandCallbacks() {
     m_bar.refresh();
     m_windowSwitcher.onToplevelChange();
   });
-  m_compositorPlatform.setKeyboardLayoutChangeCallback([this]() {
+  m_compositorPlatform.setKeyboardLayoutChangeCallback([this] {
     m_bar.refresh();
     if (m_configService.config().osd.kinds.keyboardLayout) {
       m_keyboardLayoutOsd.onLayoutChanged(m_compositorPlatform, m_configService.config());
@@ -926,7 +926,7 @@ void Application::initWaylandCallbacks() {
       m_lockScreen.onKeyboardLayoutChanged();
     }
   });
-  m_compositorPlatform.setToplevelChangeCallback([this]() {
+  m_compositorPlatform.setToplevelChangeCallback([this] {
     m_screenTimeService.onFocusChange();
     m_bar.scheduleSmartAutoHideReevaluation();
     m_dock.scheduleSmartAutoHideReevaluation();
@@ -951,7 +951,7 @@ void Application::initWaylandCallbacks() {
     );
   }
   m_idleInhibitor.initialize(m_wayland);
-  m_idleInhibitor.setChangeCallback([this, shouldRefreshControlCenter]() {
+  m_idleInhibitor.setChangeCallback([this, shouldRefreshControlCenter] {
     if (m_configService.config().osd.kinds.caffeine) {
       m_osdOverlay.show(caffeineOsdContent(m_idleInhibitor.enabled()));
     }
@@ -963,7 +963,7 @@ void Application::initWaylandCallbacks() {
 }
 
 void Application::initAuxServicesAndHooks() {
-  auto shouldRefreshControlCenter = [this]() { return m_panelManager.isOpenPanel("control-center"); };
+  auto shouldRefreshControlCenter = [this] { return m_panelManager.isOpenPanel("control-center"); };
 
   m_hookManager.setCommandRunner([this](const std::string& command) { return runShellCommand(command); });
   m_hookManager.setBlockingCommandRunner([this](const std::string& command) {
@@ -971,7 +971,7 @@ void Application::initAuxServicesAndHooks() {
   });
   m_hookManager.reload(m_configService.config().hooks);
   m_configService.addReloadCallback(
-      [this]() {
+      [this] {
         if (m_configService.lastChange().hooks) {
           m_hookManager.reload(m_configService.config().hooks);
         }
@@ -980,23 +980,23 @@ void Application::initAuxServicesAndHooks() {
   );
   m_gammaService.setLocationResolving(m_locationService.resolving());
   m_gammaService.reload(m_configService.config().nightlight, m_configService.config().location);
-  m_gammaService.setChangeCallback([this, shouldRefreshControlCenter]() {
+  m_gammaService.setChangeCallback([this, shouldRefreshControlCenter] {
     m_bar.refresh();
     if (shouldRefreshControlCenter()) {
       m_panelManager.refresh();
     }
   });
-  m_gammaService.setStateFeedbackCallback([this]() {
+  m_gammaService.setStateFeedbackCallback([this] {
     if (m_configService.config().osd.kinds.nightlight) {
       m_osdOverlay.show(nightLightOsdContent(m_gammaService));
     }
   });
-  m_configService.addReloadCallback([this]() {
+  m_configService.addReloadCallback([this] {
     m_gammaService.reload(m_configService.config().nightlight, m_configService.config().location);
   });
 
   // Register all wallpaper consumers in the single-callback slot.
-  m_configService.setWallpaperChangeCallback([this]() {
+  m_configService.setWallpaperChangeCallback([this] {
     const auto wallpaperChanges = m_wallpaper.onStateChange();
     if (m_syncScriptApiOutputs) {
       m_syncScriptApiOutputs();
@@ -1042,7 +1042,7 @@ void Application::initAuxServicesAndHooks() {
     }
   });
 
-  m_themeService.setChangeCallback([this]() {
+  m_themeService.setChangeCallback([this] {
     requestAllSurfacesRedraw();
     m_bar.refresh();
     m_lockScreen.onThemeChanged();
@@ -1069,7 +1069,7 @@ void Application::initAuxServicesAndHooks() {
     } else {
       kLog.info("system monitor service disabled by config");
     }
-    m_configService.addReloadCallback([this, shouldRefreshControlCenter]() {
+    m_configService.addReloadCallback([this, shouldRefreshControlCenter] {
       if (m_systemMonitor == nullptr) {
         return;
       }
@@ -1109,7 +1109,7 @@ void Application::releaseSleepDelayInhibitIfPending() {
 }
 
 void Application::initSystemBusServices() {
-  auto shouldRefreshControlCenter = [this]() { return m_panelManager.isOpenPanel("control-center"); };
+  auto shouldRefreshControlCenter = [this] { return m_panelManager.isOpenPanel("control-center"); };
 
   try {
     m_systemBus = std::make_unique<SystemBus>();
@@ -1210,7 +1210,7 @@ void Application::initSystemBusServices() {
           // moment to restore the adapter on resume.
           if (m_bluetoothService != nullptr) {
             m_bluetoothService->refresh();
-            m_bluetoothResumeTimer.start(std::chrono::seconds(2), [this]() {
+            m_bluetoothResumeTimer.start(std::chrono::seconds(2), [this] {
               if (m_bluetoothService != nullptr) {
                 m_bluetoothService->refresh();
               }
@@ -1218,7 +1218,7 @@ void Application::initSystemBusServices() {
           }
           requestAllSurfacesRedraw();
           // The time poll deadline is monotonic and stalls across suspend; refresh clocks now.
-          DeferredCall::callLater([this]() { m_timeService.forceTick(); });
+          DeferredCall::callLater([this] { m_timeService.forceTick(); });
         });
         kLog.info("logind sleep monitor active");
         m_idleInhibitor.setLogindService(m_logindService.get());
@@ -1232,7 +1232,7 @@ void Application::initSystemBusServices() {
 
     try {
       m_accountsService = std::make_unique<AccountsService>(*m_systemBus);
-      m_accountsService->setChangeCallback([this]() {
+      m_accountsService->setChangeCallback([this] {
         m_panelManager.refresh();
         m_settingsWindow.onExternalOptionsChanged();
       });
@@ -1298,7 +1298,7 @@ void Application::initSystemBusServices() {
         }
       });
       m_configService.addReloadCallback(
-          [this]() {
+          [this] {
             if (m_configService.lastChange().battery && m_upowerService != nullptr) {
               m_batteryWarningMonitor.evaluate(
                   m_configService.config().battery, *m_upowerService, m_notificationManager
@@ -1315,7 +1315,7 @@ void Application::initSystemBusServices() {
 
     try {
       m_keyboardBacklightService = std::make_unique<KeyboardBacklightService>(*m_systemBus);
-      m_keyboardBacklightService->setChangeCallback([this]() {
+      m_keyboardBacklightService->setChangeCallback([this] {
         m_keyboardBacklightOsd.onBrightnessChanged(*m_keyboardBacklightService);
       });
     } catch (const std::exception& e) {
@@ -1366,7 +1366,7 @@ void Application::initSystemBusServices() {
         m_prevWirelessEnabledForEvents = m_networkService->state().wirelessEnabled;
       }
       m_externalIpService.setNetworkService(m_networkService.get());
-      m_externalIpService.setChangeCallback([this, shouldRefreshControlCenter]() {
+      m_externalIpService.setChangeCallback([this, shouldRefreshControlCenter] {
         m_bar.refresh();
         if (shouldRefreshControlCenter()) {
           m_panelManager.refresh();
@@ -1374,7 +1374,7 @@ void Application::initSystemBusServices() {
       });
       m_externalIpService.onNetworkChanged();
     }
-    m_configService.addReloadCallback([this]() { m_externalIpService.onConfigReload(); });
+    m_configService.addReloadCallback([this] { m_externalIpService.onConfigReload(); });
 
     try {
       m_networkSecretAgent = std::make_unique<NetworkSecretAgent>(*m_systemBus);
@@ -1398,7 +1398,7 @@ void Application::initSystemBusServices() {
       m_bluetoothService = std::make_unique<BluetoothService>(*m_systemBus, m_upowerService.get());
       m_bluetoothService->setConnectWhenEnabled(m_configService.config().bluetooth.connectWhenEnabled);
       m_bluetoothService->setConnectionNotifications(m_configService.config().bluetooth.connectionNotifications);
-      auto refreshBluetoothUi = [this, shouldRefreshControlCenter]() {
+      auto refreshBluetoothUi = [this, shouldRefreshControlCenter] {
         m_bar.refresh();
         if (shouldRefreshControlCenter()) {
           m_panelManager.refresh();
@@ -1436,7 +1436,7 @@ void Application::initSystemBusServices() {
         m_bluetoothAgent.reset();
       }
     }
-    m_configService.addReloadCallback([this]() {
+    m_configService.addReloadCallback([this] {
       if (m_bluetoothService != nullptr) {
         m_bluetoothService->setConnectWhenEnabled(m_configService.config().bluetooth.connectWhenEnabled);
         m_bluetoothService->setConnectionNotifications(m_configService.config().bluetooth.connectionNotifications);
@@ -1445,7 +1445,7 @@ void Application::initSystemBusServices() {
 
     try {
       m_modemManagerService = std::make_unique<ModemManagerService>(*m_systemBus);
-      m_modemManagerService->setChangeCallback([this, shouldRefreshControlCenter]() {
+      m_modemManagerService->setChangeCallback([this, shouldRefreshControlCenter] {
         m_bar.refresh();
         if (shouldRefreshControlCenter()) {
           m_panelManager.refresh();
@@ -1457,18 +1457,18 @@ void Application::initSystemBusServices() {
       m_modemManagerService.reset();
     }
 
-    m_configService.addReloadCallback([this]() { syncPolkitAgent(); });
+    m_configService.addReloadCallback([this] { syncPolkitAgent(); });
   }
 }
 
 void Application::initBrightnessAndPipewire() {
-  auto shouldRefreshControlCenter = [this]() { return m_panelManager.isOpenPanel("control-center"); };
+  auto shouldRefreshControlCenter = [this] { return m_panelManager.isOpenPanel("control-center"); };
 
   try {
     m_brightnessService = std::make_unique<BrightnessService>(
         m_systemBus.get(), m_compositorPlatform, m_configService.config().brightness
     );
-    m_brightnessService->setChangeCallback([this, shouldRefreshControlCenter]() {
+    m_brightnessService->setChangeCallback([this, shouldRefreshControlCenter] {
       m_brightnessOsd.onBrightnessChanged(*m_brightnessService);
       m_bar.refresh();
       if (shouldRefreshControlCenter()) {
@@ -1476,7 +1476,7 @@ void Application::initBrightnessAndPipewire() {
       }
     });
     m_configService.addReloadCallback(
-        [this, shouldRefreshControlCenter]() {
+        [this, shouldRefreshControlCenter] {
           if (m_brightnessService == nullptr || !m_configService.lastChange().brightness) {
             return;
           }
@@ -1505,7 +1505,7 @@ void Application::initBrightnessAndPipewire() {
     m_easyEffectsService->refreshActiveEffectsProfiles();
     m_pipewireSpectrum = std::make_unique<PipeWireSpectrum>(*m_pipewireService);
     m_umbrielAudioProvider =
-        std::make_unique<compositors::umbriel::UmbrielAudioProvider>(m_compositorPlatform.umbrielRuntime(), [this]() {
+        std::make_unique<compositors::umbriel::UmbrielAudioProvider>(m_compositorPlatform.umbrielRuntime(), [this] {
           compositors::umbriel::UmbrielAudioProvider::Bands bands{};
           const auto& values = m_pipewireSpectrum->values(m_umbrielAudioListener);
           if (values.size() == bands.size()) {
@@ -1513,12 +1513,12 @@ void Application::initBrightnessAndPipewire() {
           }
           return bands;
         });
-    auto applyUmbrielAudioConfig = [this]() {
+    auto applyUmbrielAudioConfig = [this] {
       const bool enabled = compositors::isUmbriel() && m_configService.config().shell.umbrielAudioProviderEnabled;
       m_umbrielAudioProvider->setEnabled(enabled);
       if (enabled && m_umbrielAudioListener == 0) {
         m_umbrielAudioListener =
-            m_pipewireSpectrum->addChangeListener(64, [this]() { m_umbrielAudioProvider->notifyChanged(); });
+            m_pipewireSpectrum->addChangeListener(64, [this] { m_umbrielAudioProvider->notifyChanged(); });
       } else if (!enabled && m_umbrielAudioListener != 0) {
         m_pipewireSpectrum->removeChangeListener(m_umbrielAudioListener);
         m_umbrielAudioListener = 0;
@@ -1526,7 +1526,7 @@ void Application::initBrightnessAndPipewire() {
     };
     applyUmbrielAudioConfig();
     m_configService.addReloadCallback(
-        [this, applyUmbrielAudioConfig]() {
+        [this, applyUmbrielAudioConfig] {
           if (m_umbrielAudioProvider != nullptr) {
             applyUmbrielAudioConfig();
           }
@@ -1535,7 +1535,7 @@ void Application::initBrightnessAndPipewire() {
     );
     m_soundPlayer = std::make_shared<SoundPlayer>(m_pipewireService->loop());
 
-    auto applySoundConfig = [this]() {
+    auto applySoundConfig = [this] {
       if (m_soundPlayer == nullptr) {
         return;
       }
@@ -1552,7 +1552,7 @@ void Application::initBrightnessAndPipewire() {
     };
     applySoundConfig();
     m_configService.addReloadCallback(
-        [this, applySoundConfig]() {
+        [this, applySoundConfig] {
           if (m_configService.lastChange().audio) {
             applySoundConfig();
           }
@@ -1607,7 +1607,7 @@ void Application::initEarlySessionBusAndTray() {
   }
 
   m_trayService = std::make_unique<TrayService>(*m_bus);
-  m_trayService->setChangeCallback([this]() {
+  m_trayService->setChangeCallback([this] {
     m_bar.refresh();
     m_trayMenu.onTrayChanged();
     m_keyboardLayoutOsd.onTrayChanged(
@@ -1621,7 +1621,7 @@ void Application::initEarlySessionBusAndTray() {
 }
 
 void Application::initSessionBusServices() {
-  auto shouldRefreshControlCenter = [this]() { return m_panelManager.isOpenPanel("control-center"); };
+  auto shouldRefreshControlCenter = [this] { return m_panelManager.isOpenPanel("control-center"); };
 
   if (m_bus != nullptr) {
     try {
@@ -1634,7 +1634,7 @@ void Application::initSessionBusServices() {
 
     try {
       m_mprisService = std::make_unique<MprisService>(*m_bus);
-      auto applyMprisConfig = [this]() {
+      auto applyMprisConfig = [this] {
         if (m_mprisService == nullptr) {
           return;
         }
@@ -1642,7 +1642,7 @@ void Application::initSessionBusServices() {
       };
       applyMprisConfig();
       m_configService.addReloadCallback(applyMprisConfig);
-      m_mprisService->setChangeCallback([this, shouldRefreshControlCenter]() {
+      m_mprisService->setChangeCallback([this, shouldRefreshControlCenter] {
         m_bar.refresh();
         m_desktopWidgetsController.requestUpdate();
         m_mediaOsd.onMprisChanged(*m_mprisService);
@@ -1666,7 +1666,7 @@ void Application::initSessionBusServices() {
 
     installNotificationBusNameWatch();
     syncNotificationDaemon();
-    m_configService.addReloadCallback([this]() { syncNotificationDaemon(); });
+    m_configService.addReloadCallback([this] { syncNotificationDaemon(); });
     installSecretServiceNameWatch();
     installSecretServiceCollectionWatch();
 
@@ -1680,7 +1680,7 @@ void Application::initSessionBusServices() {
   // noctalia.calendarEvents(). Same pattern as the clipboard text mirror: converted once per sync on
   // the main thread, then read race-free from plugin states. Registered before initialize() so the
   // first sync is not missed.
-  auto pushCalendar = [this]() {
+  auto pushCalendar = [this] {
     const CalendarSnapshot& snapshot = m_calendarService.snapshot();
     if (!snapshot.valid) {
       m_scriptApi.setCalendarEvents(nullptr);
@@ -1713,14 +1713,14 @@ void Application::initSessionBusServices() {
 
   // Load the persisted fired set before the first evaluation, or a restart would re-notify.
   m_calendarReminderMonitor.initialize();
-  (void)m_calendarService.addChangeCallback([this]() {
+  (void)m_calendarService.addChangeCallback([this] {
     m_calendarReminderMonitor.onSnapshotChanged(m_calendarService.snapshot());
   });
   // initialize() already loaded the encrypted cache, so the snapshot can be valid before the first
   // network sync; seed from it so missed reminders fire at startup rather than after a refresh.
   m_calendarReminderMonitor.onSnapshotChanged(m_calendarService.snapshot());
   m_configService.addReloadCallback(
-      [this]() {
+      [this] {
         if (m_configService.lastChange().calendar) {
           m_calendarReminderMonitor.onConfigReload();
         }
@@ -1731,7 +1731,7 @@ void Application::initSessionBusServices() {
   // LocationService is the single source of "where am I": push its resolved coordinates to the
   // weather service, night light, and theme auto mode. Manual latitude/longitude and fixed
   // sunrise/sunset live in [location] and reach night light/theme through their config reloads.
-  auto pushLocation = [this]() {
+  auto pushLocation = [this] {
     m_gammaService.setLocationResolving(m_locationService.resolving());
     const auto location = m_locationService.resolvedLocation();
     if (location.has_value()) {
@@ -1748,7 +1748,7 @@ void Application::initSessionBusServices() {
     }
   };
   pushLocation();
-  m_locationService.addChangeCallback([this, pushLocation, shouldRefreshControlCenter]() {
+  m_locationService.addChangeCallback([this, pushLocation, shouldRefreshControlCenter] {
     pushLocation();
     m_bar.refresh();
     m_desktopWidgetsController.requestLayout();
@@ -1756,7 +1756,7 @@ void Application::initSessionBusServices() {
       m_panelManager.refresh();
     }
   });
-  m_weatherService.addChangeCallback([this, shouldRefreshControlCenter]() {
+  m_weatherService.addChangeCallback([this, shouldRefreshControlCenter] {
     m_bar.refresh();
     m_desktopWidgetsController.requestLayout();
     if (m_lockScreen.isActive()) {
