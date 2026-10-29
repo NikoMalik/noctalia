@@ -1,6 +1,7 @@
 #include "render/programs/rect_program.h"
 
 #include "render/core/render_styles.h"
+#include "render/programs/pixel_style_glsl.h"
 
 #include <array>
 #include <stdexcept>
@@ -60,27 +61,8 @@ uniform vec2 u_shadow_exclusion_size;
 uniform vec4 u_shadow_exclusion_corner_shapes;
 uniform vec4 u_shadow_exclusion_logical_inset;
 uniform vec4 u_shadow_exclusion_radii;
-uniform float u_pixel;
 varying vec2 v_pixel;
-
-float pixel_rect_distance(vec2 centered, vec2 half_size, float radius) {
-    vec2 q = abs(centered) - half_size;
-    float box = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
-    float steps = floor(radius / u_pixel + 0.5);
-    vec2 c = -q;
-    if (steps < 1.0 || c.x >= steps * u_pixel || c.y >= steps * u_pixel) {
-        return box;
-    }
-    float stairs = 1e5;
-    for (int i = 0; i <= 64; i++) {
-        if (float(i) > steps) {
-            break;
-        }
-        vec2 d = vec2(float(i), steps - float(i)) * u_pixel - c;
-        stairs = min(stairs, length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
-    }
-    return max(box, stairs);
-}
+)" NOCTALIA_PIXEL_STYLE_GLSL R"(
 
 float rounded_rect_distance(vec2 point, vec2 size, vec4 radii) {
     vec2 half_size = size * 0.5;
@@ -96,6 +78,9 @@ float rounded_rect_distance(vec2 point, vec2 size, vec4 radii) {
 }
 
 float circle_extent(float radius, float delta) {
+    if (u_pixel > 0.0) {
+        return pixel_corner_extent(radius, delta);
+    }
     return sqrt(max(0.0, radius * radius - delta * delta));
 }
 
@@ -213,6 +198,9 @@ float shape_distance(vec2 point, vec2 size, vec4 radii, vec4 corner_shapes, vec4
     }
 
     float boundary_distance = max(max(left - x, x - right), max(top - y, y - bottom));
+    if (u_pixel > 0.0) {
+        return max(boundary_distance, max(max(-point.x, point.x - size.x), max(-point.y, point.y - size.y)));
+    }
 
     // The carved boundary above measures distance along x/y, so on an arc its
     // gradient is not unit length and it creases where the dominant edge term
@@ -306,6 +294,11 @@ void main() {
         float cutout_aa = 0.85;
         float shadow_distance = shape_distance(local_point, u_rect_size, u_radii, u_corner_shapes, u_logical_inset);
         float shadow_outer_coverage = 1.0 - smoothstep(-aa, aa, shadow_distance);
+        if (u_pixel > 0.0) {
+            vec2 cell = (floor(local_point / u_pixel) + 0.5) * u_pixel;
+            float cell_distance = shape_distance(cell, u_rect_size, u_radii, u_corner_shapes, u_logical_inset);
+            shadow_outer_coverage = pixel_shadow_level(1.0 - smoothstep(-aa, aa, cell_distance));
+        }
         float cutout_distance = shape_distance(local_point + u_shadow_cutout_offset, u_rect_size, u_radii, u_corner_shapes, u_logical_inset);
         float cutout_mask = 1.0 - smoothstep(-cutout_aa, cutout_aa, cutout_distance);
         float shadow_coverage = shadow_outer_coverage * (1.0 - cutout_mask);
@@ -454,8 +447,8 @@ void RectProgram::ensureInitialized() {
       || m_shadowExclusionCornerShapesLocation < 0
       || m_shadowExclusionLogicalInsetLocation < 0
       || m_shadowExclusionRadiiLocation < 0
-      || m_transformLocation < 0
-      || m_pixelLocation < 0) {
+      || m_pixelLocation < 0
+      || m_transformLocation < 0) {
     throw std::runtime_error("failed to query rounded-rect shader locations");
   }
 }

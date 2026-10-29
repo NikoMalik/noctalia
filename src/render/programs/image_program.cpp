@@ -1,6 +1,7 @@
 #include "render/programs/image_program.h"
 
 #include "render/core/texture_handle.h"
+#include "render/programs/pixel_style_glsl.h"
 
 #include <algorithm>
 #include <array>
@@ -65,7 +66,6 @@ uniform int u_alpha_mask;
 uniform float u_opacity;
 uniform vec2 u_size;
 uniform float u_radius;
-uniform float u_pixel;
 uniform vec4 u_border_color;
 uniform float u_border_width;
 uniform int u_scrim_enabled;
@@ -77,25 +77,7 @@ uniform vec4 u_scrim_color2;
 uniform vec4 u_scrim_color3;
 varying vec2 v_texcoord;
 varying vec2 v_local;
-
-float pixel_rect_distance(vec2 centered, vec2 half_size, float radius) {
-    vec2 q = abs(centered) - half_size;
-    float box = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
-    float steps = floor(radius / u_pixel + 0.5);
-    vec2 c = -q;
-    if (steps < 1.0 || c.x >= steps * u_pixel || c.y >= steps * u_pixel) {
-        return box;
-    }
-    float stairs = 1e5;
-    for (int i = 0; i <= 64; i++) {
-        if (float(i) > steps) {
-            break;
-        }
-        vec2 d = vec2(float(i), steps - float(i)) * u_pixel - c;
-        stairs = min(stairs, length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
-    }
-    return max(box, stairs);
-}
+)" NOCTALIA_PIXEL_STYLE_GLSL R"(
 
 float rounded_rect_distance(vec2 centered, vec2 half_size, float radius) {
     if (u_pixel > 0.0) {
