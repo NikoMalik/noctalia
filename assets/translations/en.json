@@ -204,6 +204,30 @@
       }
     }
   },
+  "calendar": {
+    "sync": {
+      "connecting": "Syncing: connecting…",
+      "downloading": "Syncing: downloading events…",
+      "failed": "Sync failed: {reason}",
+      "failure": {
+        "access-denied": "The server denied access to the resource.",
+        "authentication": "The server rejected the username or password.",
+        "client-certificate": "The client certificate or key file could not be read.",
+        "configuration": "The account settings are incomplete.",
+        "credentials": "No password is stored for this account, or it could not be read.",
+        "credentials-locked": "The keyring holding its credentials is locked; unlock it, then retry.",
+        "google-authorization": "Google authorization is missing or was revoked; reconnect the account.",
+        "invalid-response": "The server's response could not be read.",
+        "network": "The server could not be reached.",
+        "no-calendars": "No calendars with events were found.",
+        "not-found": "No calendar was found at the configured address.",
+        "server": "The server reported an error.",
+        "timeout": "The server took too long to respond."
+      },
+      "not-synced": "Not synced yet",
+      "synced": "Synced {when}"
+    }
+  },
   "clipboard": {
     "actions": {
       "clear-all": "Clear everything",
@@ -657,6 +681,7 @@
         "show-caps-lock": "Caps Lock Warning",
         "show-device": "Show Device",
         "show-events": "Show Events",
+        "show-events-location": "Show Event Location",
         "show-forecast": "Show Forecast",
         "show-keyboard-layout": "Keyboard Layout",
         "show-label": "Show Label",
@@ -2269,6 +2294,10 @@
           "description": "Inside outline width for the dock",
           "label": "Border Width"
         },
+        "compositor-blur": {
+          "description": "Allow the compositor to blur behind the dock when the background effect protocol is available",
+          "label": "Compositor Blur"
+        },
         "concave-edge-corners": {
           "description": "Carve inward corners on the side that touches the screen edge; requires the margin to the screen edge to be 0",
           "label": "Concave Edge Corners"
@@ -2614,6 +2643,12 @@
         "history-retention-hours": {
           "description": "Automatically remove notification history entries older than the specified number of hours (0 to keep forever)",
           "label": "Retention Period"
+        },
+        "history-storage": {
+          "button": "Retry",
+          "description-recovery": "Saved notification history could not be authenticated or is damaged; retry after restoring the correct key, or reset private storage",
+          "description-unavailable": "Encrypted notification history is not open, so notifications are kept for this session only; unlock private storage or restore the configured key, then retry",
+          "label": "Notification History Storage"
         },
         "keep-dismissed-in-history": {
           "description": "Keep notifications in history after their toasts are dismissed",
@@ -3019,10 +3054,7 @@
         "calendar-edit": {
           "button": "Edit",
           "button-reconnect": "Reconnect",
-          "button-retry": "Retry",
-          "description": "Update this calendar account",
-          "description-locked": "The refresh token is in a locked keyring; unlock the keyring and retry",
-          "description-reconnect": "Google authorization is missing; reconnect this account"
+          "button-retry": "Retry"
         },
         "calendar-event-date-format": {
           "description": "The date format shown above the event list in calendar views",
@@ -3055,6 +3087,10 @@
         "calendar-reminders": {
           "description": "Notify before an event starts.",
           "label": "Calendar Reminders"
+        },
+        "calendar-show-events-location": {
+          "description": "Show each event's location below its time in the event list",
+          "label": "Show Event Location"
         },
         "calendar-storage": {
           "button": "Retry",
@@ -3839,7 +3875,7 @@
     "storage-recovery": {
       "button": "Reset Private Storage",
       "button-confirm": "Confirm Storage Reset",
-      "description": "Permanently delete saved clipboard history and the calendar event cache, then reopen private storage (a configured key file is never modified)",
+      "description": "Permanently delete saved clipboard and notification history, notification images, and the calendar event cache, then reopen private storage (a configured key file is never modified)",
       "error-delete": "Some private storage files could not be deleted. The storage key was preserved.",
       "error-key": "Private storage files were deleted, but secure storage could not be reopened. Fix access and retry.",
       "label": "Recover Private Storage",
@@ -4857,6 +4893,10 @@
         "pinned-opacity": {
           "description": "Opacity of pinned apps that are not currently running",
           "label": "Pinned App Opacity"
+        },
+        "prefer-symbolic-icons": {
+          "description": "Prefer -symbolic variants from the active icon theme when available, falling back to regular application icons",
+          "label": "Prefer Symbolic Icons"
         },
         "reversed": {
           "description": "Reverse the low-to-high frequency order of the bars",

@@ -28,16 +28,27 @@
   },
   "bar": {
     "annotate": {
+      "backdrop": "Camada de Fundo",
+      "backdrop-angle": "Ângulo",
+      "backdrop-enabled": "Camada de Fundo",
+      "backdrop-gradient": "Gradiente",
+      "backdrop-padding": "Espaçamento Interno",
+      "backdrop-radius": "Cantos",
+      "backdrop-shadow": "Sombra",
+      "backdrop-shadow-blur": "Borrar",
+      "backdrop-shadow-offset-x": "Deslocamento X",
+      "backdrop-shadow-offset-y": "Deslocamento Y",
+      "backdrop-shadow-opacity": "Opacidade",
       "capture-new-region": "Capturar nova região (descarta a edição atual)",
       "close": "Fechar editor",
-      "color-black": "Preto",
-      "color-blue": "Azul",
-      "color-green": "Verde",
-      "color-orange": "Laranja",
-      "color-purple": "Roxo",
-      "color-red": "Vermelho",
-      "color-white": "Branco",
-      "color-yellow": "Amarelo",
+      "color-black": "Preto (8)",
+      "color-blue": "Azul (4)",
+      "color-green": "Verde (3)",
+      "color-orange": "Laranja (5)",
+      "color-purple": "Roxo (6)",
+      "color-red": "Vermelho (1)",
+      "color-white": "Branco (7)",
+      "color-yellow": "Amarelo (2)",
       "copy": "Copiar a imagem anotada (Ctrl+C)",
       "cursor": "Mostrar o ponteiro capturado com a tela (p)",
       "cursor-capture-failed": "Alternação de ponteiro não disponível: o compositor não pôde prover uma imagem de cursor separada.",
@@ -48,6 +59,15 @@
       "fill-opaque": "Preenchimento de forma: opaco (f)",
       "fill-semi": "Preenchimento de forma: semi-transparente (f)",
       "freeze": "Congelar a tela sob a tinta (z)",
+      "gradient-graphite": "Grafite",
+      "gradient-mint": "Menta",
+      "gradient-paper": "Papel",
+      "gradient-sky": "Céu",
+      "gradient-sunset": "Por do Sol",
+      "gradient-theme": "Tema",
+      "gradient-theme-accent": "Tonalidade do tema",
+      "gradient-theme-soft": "Tema suave",
+      "gradient-theme-subtle": "Tema sutil",
       "move-toolbar": "Arraste para mover a barra de ferramentas",
       "redo": "Refazer (Ctrl+Shift+Z)",
       "save": "Salvar a imagem anotada (Ctrl+S)",
@@ -56,6 +76,7 @@
       "size-large": "Grande",
       "size-medium": "Médio",
       "size-small": "Pequeno",
+      "stroke": "Cor e espessura",
       "tool-arrow": "Seta (a) · segure Shift para ajustar o ângulo",
       "tool-blur": "Borrar uma região (u)",
       "tool-brush": "Pincel (b)",
@@ -1969,14 +1990,14 @@
       },
       "backdrop": {
         "blur-intensity": {
-          "description": "Intensidade do desfoque do fundo",
+          "description": "Intensidade do desfoque da Camada de Fundo",
           "label": "Intensidade do Desfoque"
         },
         "enabled": {
-          "description": "Habilitar a camada de fundo"
+          "description": "Habilitar a Camada de Fundo"
         },
         "tint-intensity": {
-          "description": "Intensidade da tonalidade do fundo",
+          "description": "Intensidade da tonalidade da Camada de Fundo",
           "label": "Intensidade da Tonalidade"
         }
       },
@@ -2994,10 +3015,7 @@
         "calendar-edit": {
           "button": "Editar",
           "button-reconnect": "Reconectar",
-          "button-retry": "Tentar novamente",
-          "description": "Atualizar essa conta de Calendário",
-          "description-locked": "O token de atualização está em um chaveiro bloqueado; desbloqueie o chaveiro e tente novamente",
-          "description-reconnect": "Autorização do Google está ausente; reconecte esta conta."
+          "button-retry": "Tentar novamente"
         },
         "calendar-event-date-format": {
           "description": "O formato de data mostrado acima da lista de eventos nas visões do calendário",
@@ -3419,6 +3437,10 @@
           "description": "Exibir um OSD quando uma nova faixa começar a tocar",
           "label": "Reproduzindo Agora"
         },
+        "osd-kinds-media-volume": {
+          "description": "Mostrar um popup OSD quando o volume de tocador de mídia mudar",
+          "label": "Volume de Mídia"
+        },
         "osd-kinds-nightlight": {
           "description": "Exibir um OSD quando luz noturna for alternada",
           "label": "Luz Noturna"
@@ -3710,6 +3732,10 @@
         "automation-order": {
           "description": "Escolhe papéis de parede aleatoriamente ou em ordem alfabética",
           "label": "Ordem"
+        },
+        "automation-pause-on-fullscreen": {
+          "description": "Segurar rotação enquanto uma janela estiver em tela cheia",
+          "label": "Pausar em Tela Cheia"
         },
         "automation-recursive": {
           "description": "Busca papéis de parede em subpastas",

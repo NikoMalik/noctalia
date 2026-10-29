@@ -2529,8 +2529,7 @@
           "description-unavailable": "Aucun fournisseur Secret Service n'est disponible dans cette session"
         },
         "calendar-edit": {
-          "button": "Modifier",
-          "description": "Met à jour ce compte de calendrier"
+          "button": "Modifier"
         },
         "calendar-event-date-format": {
           "label": "Format de date d'événement"
