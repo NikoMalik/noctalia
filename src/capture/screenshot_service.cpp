@@ -21,6 +21,7 @@
 #include "pipewire/sound_player.h"
 #include "render/core/image_encoder.h"
 #include "render/core/image_file_loader.h"
+#include "render/core/image_resize.h"
 #include "render/render_context.h"
 #include "shell/panel/panel_manager.h"
 #include "time/time_format.h"
@@ -46,7 +47,6 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <sstream>
-#include <stb/stb_image_resize2.h>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -250,13 +250,9 @@ namespace {
       return true;
     }
 
-    std::vector<std::uint8_t> resized(
-        static_cast<std::size_t>(targetWidth) * static_cast<std::size_t>(targetHeight) * 4U
-    );
-    if (stbir_resize_uint8_srgb(
-            image.rgba.data(), image.width, image.height, 0, resized.data(), targetWidth, targetHeight, 0, STBIR_RGBA
-        )
-        == nullptr) {
+    std::vector<std::uint8_t> resized =
+        resizeToRgba(image.rgba.data(), image.width, image.height, ResizeSourceLayout::Rgba, targetWidth, targetHeight);
+    if (resized.empty()) {
       return false;
     }
 

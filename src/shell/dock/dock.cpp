@@ -376,6 +376,16 @@ void Dock::reload() {
   syncInstances();
 }
 
+void Dock::onIconThemeChanged() {
+  for (auto& inst : m_instances) {
+    // A new model serial makes the next update rebuild the items, which re-resolves icons.
+    ++inst->modelSerial;
+    if (inst->surface != nullptr) {
+      inst->surface->requestUpdate();
+    }
+  }
+}
+
 void Dock::show() {
   if (m_overlayDisplaySuppressed) {
     return;
@@ -552,12 +562,16 @@ bool Dock::onPointerEvent(const PointerEvent& event) {
           },
           [inst = m_hoveredInstance] { inst->hideAnimId = 0; }
       );
-      // Restore full input region (full surface so shadow-margin edges don't
-      // cause an immediate Leave when triggered from the edge of the strip).
+      // Restore the revealed capsule region so magnified icons receive events,
+      // while clicks outside the capsule pass through to underlying windows.
       if (m_hoveredInstance->surface != nullptr) {
-        const int sw = static_cast<int>(m_hoveredInstance->surface->width());
-        const int sh = static_cast<int>(m_hoveredInstance->surface->height());
-        m_hoveredInstance->surface->setInputRegion({InputRect{0, 0, sw, sh}});
+        m_hoveredInstance->surface->setInputRegion(
+            shell::dock::computeInputRegion(
+                m_hoveredInstance->config, m_hoveredInstance->panelGeometry,
+                static_cast<int>(m_hoveredInstance->surface->width()),
+                static_cast<int>(m_hoveredInstance->surface->height()), false, m_hoveredInstance->fractionalScale
+            )
+        );
       }
       m_hoveredInstance->surface->requestRedraw();
     }
@@ -814,8 +828,7 @@ void Dock::createInstance(const WaylandOutput& output) {
 
   const auto& shadowConfig = m_config->config().shell.shadow;
   LayerSurfaceConfig lsCfg = shell::dock::makeLayerSurfaceConfig(
-      cfg, shadowConfig, cfg.pinned.size() + shell::dock::dockLauncherButtonCount(cfg), instance->fractionalScale,
-      instance->outputLogicalWidth, instance->outputLogicalHeight
+      cfg, shadowConfig, instance->fractionalScale, instance->outputLogicalWidth, instance->outputLogicalHeight
   );
 
   instance->surface = std::make_unique<LayerSurface>(m_platform->wayland(), std::move(lsCfg));

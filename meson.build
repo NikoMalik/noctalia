@@ -478,6 +478,7 @@ _noctalia_sources = files(
   'src/calendar/sync_failure.cpp',
   'src/calendar/vdir_reader.cpp',
   'src/config/atomic_file.cpp',
+  'src/config/config_credentials.cpp',
   'src/config/config_export.cpp',
   'src/config/config_merge.cpp',
   'src/config/config_migrations.cpp',
@@ -596,6 +597,7 @@ _noctalia_sources = files(
   'src/render/core/heif_library.cpp',
   'src/render/core/image_encoder.cpp',
   'src/render/core/image_orientation.cpp',
+  'src/render/core/image_resize.cpp',
   'src/render/programs/glyph_program.cpp',
   'src/render/programs/image_program.cpp',
   'src/render/programs/lockscreen_transition_program.cpp',
@@ -722,6 +724,7 @@ _noctalia_sources = files(
   'src/shell/switcher/window_switcher_style.cpp',
   'src/shell/switcher/window_switcher_carousel_style.cpp',
   'src/shell/switcher/window_switcher_compact_style.cpp',
+  'src/shell/switcher/window_switcher_icons_style.cpp',
   'src/shell/switcher/window_switcher_tile.cpp',
   'src/shell/profile/avatar_path.cpp',
   'src/shell/greeter/greeter_appearance_sync.cpp',
@@ -878,6 +881,7 @@ _noctalia_sources = files(
   'src/shell/bar/widgets/workspaces_widget.cpp',
   'src/shell/bar/widgets/workspaces_widget_definition.cpp',
   'src/system/dependency_service.cpp',
+  'src/system/v4l2_camera.cpp',
   'src/system/desktop_entry.cpp',
   'src/system/freedesktop_key_file.cpp',
   'src/system/desktop_entry_launch.cpp',
@@ -973,6 +977,7 @@ _noctalia_sources = files(
   'src/ui/ui_tree_reconciler.cpp',
   'src/ui/app_icon_colorization.cpp',
   'src/ui/palette.cpp',
+  'src/ui/palette_swatch_preview.cpp',
   'src/ui/popup_chrome.cpp',
   'src/ui/scroll_into_view.cpp',
   'src/ui/split_pane_focus.cpp',
@@ -1045,6 +1050,7 @@ _noctalia_sources = files(
   'src/theme/community_templates.cpp',
   'src/theme/custom_palettes.cpp',
   'src/theme/fixed_palette.cpp',
+  'src/theme/fixed_palette_json.cpp',
   'src/theme/template_apply_service.cpp',
   'src/theme/gtk_extensions.cpp',
   'src/theme/theme_service.cpp',
@@ -1277,6 +1283,7 @@ if build_tests
     'format_units',
     'freedesktop_key_file',
     'firefox_theme_manifest',
+    'fixed_palette_json',
     'font_family_catalog',
     'google_client_calendar_list',
     'google_client_reminders',
@@ -1304,6 +1311,7 @@ if build_tests
     'jxl_decoder',
     'kde_color_scheme',
     'keyboard_layout_label',
+    'labwc_occupancy',
     'lane_selection_token',
     'launcher_category_state',
     'location_service',
@@ -1330,6 +1338,7 @@ if build_tests
     'plugin_catalog',
     'plugin_file_privacy',
     'plugin_git_export',
+    'plugin_gpu_monitoring',
     'plugin_i18n',
     'plugin_lifecycle',
     'plugin_manifest',
@@ -1365,6 +1374,7 @@ if build_tests
     'upower_charge_limit',
     'upower_device_catalog',
     'uri',
+    'v4l2_camera',
     'vdir_reader',
     'virtual_grid_view_gesture',
     'wallpaper_scan_symlink',
@@ -1447,12 +1457,25 @@ if build_tests
     dependencies: noctalia_core_dep,
     override_options: ['b_ndebug=false'],
   )
+  tray_signal_sender_integration_exe = executable('tray_signal_sender_integration_test',
+    sources: files('tests/tray_signal_sender_integration_test.cpp'),
+    dependencies: noctalia_core_dep,
+    override_options: ['b_ndebug=false'],
+  )
   fingerprint_integration_exe = executable('fingerprint_authenticator_integration_test',
     sources: files('tests/fingerprint_authenticator_integration_test.cpp'),
     dependencies: noctalia_core_dep,
     override_options: ['b_ndebug=false'],
   )
   dbus_run_session = find_program('dbus-run-session', required: false)
+  if dbus_run_session.found()
+    url_open_test_exe = executable('url_open_test',
+      sources: files('tests/url_open_test.cpp'),
+      dependencies: noctalia_core_dep,
+      override_options: ['b_ndebug=false'],
+    )
+    test('url_open', dbus_run_session, args: ['--', url_open_test_exe])
+  endif
   if dbus_run_session.found()
     test('upower_charge_limit_integration',
       dbus_run_session,
@@ -1468,13 +1491,20 @@ if build_tests
       args: ['--', secret_collection_probe_integration_exe.full_path()],
       depends: secret_collection_probe_integration_exe,
     )
-    foreach mode : ['registration', 'discovery']
-      test('tray_' + mode + '_integration',
-        dbus_run_session,
-        args: ['--', tray_registration_integration_exe.full_path(), mode],
-        depends: tray_registration_integration_exe,
-      )
+    foreach mode : ['registration', 'discovery', 'external-watcher']
+      foreach scenario : ['default', 'ayatana', 'both']
+        test('tray_' + mode + '_' + scenario + '_integration',
+          dbus_run_session,
+          args: ['--', tray_registration_integration_exe.full_path(), mode, scenario],
+          depends: tray_registration_integration_exe,
+        )
+      endforeach
     endforeach
+    test('tray_signal_sender_integration',
+      dbus_run_session,
+      args: ['--', tray_signal_sender_integration_exe.full_path()],
+      depends: tray_signal_sender_integration_exe,
+    )
     test('fingerprint_authenticator_integration',
       dbus_run_session,
       args: [
