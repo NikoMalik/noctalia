@@ -4,6 +4,7 @@
 #include "config/config_types.h"
 #include "i18n/i18n.h"
 #include "notification/notification_filter.h"
+#include "shell/dialogs/glyph_picker_dialog.h"
 #include "shell/settings/bar_widget_editor.h"
 #include "shell/settings/settings_content_common.h"
 #include "shell/settings/settings_control_factory.h"
@@ -17,7 +18,6 @@
 #include "ui/controls/segmented.h"
 #include "ui/controls/select.h"
 #include "ui/controls/toggle.h"
-#include "ui/dialogs/glyph_picker_dialog.h"
 #include "ui/palette.h"
 #include "ui/style.h"
 
@@ -68,6 +68,7 @@ namespace settings {
         .showAdvanced = ctx.showAdvanced,
         .showOverriddenOnly = ctx.showOverriddenOnly,
         .batteryDeviceOptions = ctx.batteryDeviceOptions,
+        .availableOutputs = ctx.availableOutputs,
         .editingWidgetName = ctx.editingWidgetName,
         .editingCapsuleGroupId = ctx.editingCapsuleGroupId,
         .selectedLaneWidgets = ctx.selectedLaneWidgets,
@@ -80,7 +81,7 @@ namespace settings {
                                 ) { return factory.makeGestureActionRow(setting, title, path); },
         .pendingGestureKey = ctx.pendingGestureKey,
         .pendingGestureVerb = ctx.pendingGestureVerb,
-        .actionsExpandedFor = ctx.actionsExpandedFor,
+        .expandedWidgetGroups = ctx.expandedWidgetGroups,
         .actionCatalog = ctx.actionCatalog,
         .requestRebuild = ctx.requestRebuild,
         .resetContentScroll = ctx.resetContentScroll,
@@ -686,6 +687,7 @@ namespace settings {
                     commitItems(std::move(items));
                   }
                 },
+            .onReject = notifyKeybindRejected,
             .configure = configureGridRecorder,
         });
         row->addChild(std::move(recorder));
@@ -732,6 +734,7 @@ namespace settings {
                   items.push_back(chord);
                   commitItems(std::move(items));
                 },
+            .onReject = notifyKeybindRejected,
             .configure =
                 [configureGridRecorder, focusKey = keybindTabFocusKey(".add")](KeybindRecorder& recorder) {
                   configureGridRecorder(recorder);
@@ -1186,6 +1189,8 @@ namespace settings {
               return makeOptionalStepper(control, entry.path);
             } else if constexpr (std::is_same_v<T, StepperSetting>) {
               return makeStepper(control, entry.path);
+            } else if constexpr (std::is_same_v<T, LengthSetting>) {
+              return factory.makeLength(control, entry.path);
             } else if constexpr (std::is_same_v<T, SearchPickerSetting>) {
               return nullptr;
             } else if constexpr (std::is_same_v<T, MultiSelectSetting>) {

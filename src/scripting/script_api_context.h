@@ -1,9 +1,10 @@
 #pragma once
 
-#include "core/toml.h"
+#include "config/toml.h"
 #include "scripting/plugin_layer_config.h"
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -46,6 +47,25 @@ namespace scripting {
     bool allDay = false;
   };
 
+  // The shell's active MPRIS player as exposed to plugin scripts via noctalia.mediaPlayer().
+  // `positionMs` is the position at `sampledAt`; the binding projects it to call time while playing.
+  struct ScriptMediaPlayer {
+    std::string busName;
+    std::string identity;
+    std::string desktopEntry;
+    std::string status; // "Playing" | "Paused" | "Stopped"
+    std::string trackId;
+    std::string title;
+    std::vector<std::string> artists;
+    std::string album;
+    std::string url; // xesam:url, empty when absent
+    std::string artUrl;
+    double positionMs = 0.0;
+    double lengthMs = 0.0; // 0 when unknown
+    double rate = 1.0;
+    std::chrono::steady_clock::time_point sampledAt;
+  };
+
   class ScriptApiContext {
   public:
     using LoadSoundHook =
@@ -65,7 +85,7 @@ namespace scripting {
         void(PluginLayerCommand command, const std::string& entryId, const PluginLayerConfigPatch& patch)>;
     using ShowOsdHook = std::function<void(const std::string&, const std::string&, std::optional<double>, bool)>;
 
-    [[nodiscard]] bool isDarkMode() const noexcept { return m_darkMode.load(std::memory_order_relaxed); }
+    bool isDarkMode() const noexcept { return m_darkMode.load(std::memory_order_relaxed); }
     void setDarkMode(bool dark) noexcept { m_darkMode.store(dark, std::memory_order_relaxed); }
 
     void setWallpaperDirectory(std::string directory) {
@@ -73,7 +93,7 @@ namespace scripting {
       m_wallpaperDirectory = std::move(directory);
     }
 
-    [[nodiscard]] std::string wallpaperDirectory() const {
+    std::string wallpaperDirectory() const {
       std::scoped_lock lock(m_mutex);
       return m_wallpaperDirectory;
     }
@@ -83,7 +103,7 @@ namespace scripting {
       m_wallpaperPaths = std::move(paths);
     }
 
-    [[nodiscard]] std::optional<std::string> wallpaperPath(const std::string& outputName) const {
+    std::optional<std::string> wallpaperPath(const std::string& outputName) const {
       std::scoped_lock lock(m_mutex);
       const auto it = m_wallpaperPaths.find(outputName);
       return it != m_wallpaperPaths.end() ? std::optional<std::string>{it->second} : std::nullopt;
@@ -96,7 +116,7 @@ namespace scripting {
       m_outputs = std::move(outputs);
     }
 
-    [[nodiscard]] std::vector<ScriptOutputInfo> outputs() const {
+    std::vector<ScriptOutputInfo> outputs() const {
       std::scoped_lock lock(m_mutex);
       return m_outputs;
     }
@@ -136,7 +156,7 @@ namespace scripting {
       m_configSnapshotListeners.erase(id);
     }
 
-    [[nodiscard]] std::shared_ptr<const toml::table> configSnapshot() const {
+    std::shared_ptr<const toml::table> configSnapshot() const {
       std::scoped_lock lock(m_mutex);
       return m_configSnapshot;
     }
@@ -148,7 +168,7 @@ namespace scripting {
       m_clipboardText = std::move(text);
     }
 
-    [[nodiscard]] std::optional<std::string> clipboardText() const {
+    std::optional<std::string> clipboardText() const {
       std::scoped_lock lock(m_mutex);
       return m_clipboardText;
     }
@@ -162,9 +182,21 @@ namespace scripting {
       m_calendarEvents = std::move(events);
     }
 
-    [[nodiscard]] std::shared_ptr<const std::vector<ScriptCalendarEvent>> calendarEvents() const {
+    std::shared_ptr<const std::vector<ScriptCalendarEvent>> calendarEvents() const {
       std::scoped_lock lock(m_mutex);
       return m_calendarEvents;
+    }
+
+    // Active MPRIS player, mirrored from MprisService on the main thread on every player change and
+    // position sample. Null while there is no active player or no MPRIS service.
+    void setMediaPlayer(std::shared_ptr<const ScriptMediaPlayer> player) {
+      std::scoped_lock lock(m_mutex);
+      m_mediaPlayer = std::move(player);
+    }
+
+    std::shared_ptr<const ScriptMediaPlayer> mediaPlayer() const {
+      std::scoped_lock lock(m_mutex);
+      return m_mediaPlayer;
     }
 
     // Shell [shell].time_format / date_format — mirrored for noctalia.timeFormat() / dateFormat().
@@ -173,7 +205,7 @@ namespace scripting {
       m_timeFormat = std::move(format);
     }
 
-    [[nodiscard]] std::string timeFormat() const {
+    std::string timeFormat() const {
       std::scoped_lock lock(m_mutex);
       return m_timeFormat;
     }
@@ -183,7 +215,7 @@ namespace scripting {
       m_dateFormat = std::move(format);
     }
 
-    [[nodiscard]] std::string dateFormat() const {
+    std::string dateFormat() const {
       std::scoped_lock lock(m_mutex);
       return m_dateFormat;
     }
@@ -224,7 +256,7 @@ namespace scripting {
 
     void setClearWallpaperMasksHook(ClearWallpaperMasksHook hook) { m_clearWallpaperMasksHook = std::move(hook); }
 
-    [[nodiscard]] ClearWallpaperMasksHook clearWallpaperMasksHook() const { return m_clearWallpaperMasksHook; }
+    ClearWallpaperMasksHook clearWallpaperMasksHook() const { return m_clearWallpaperMasksHook; }
 
     // The live system monitor, or nullptr when it is unavailable. Unlike the hooks around it this
     // is read straight from a script worker thread: SystemMonitorService::latest() is mutex-guarded
@@ -234,9 +266,7 @@ namespace scripting {
       m_systemMonitor.store(monitor, std::memory_order_release);
     }
 
-    [[nodiscard]] SystemMonitorService* systemMonitor() const noexcept {
-      return m_systemMonitor.load(std::memory_order_acquire);
-    }
+    SystemMonitorService* systemMonitor() const noexcept { return m_systemMonitor.load(std::memory_order_acquire); }
 
     // Toggles a host panel by id. Wired to PanelManager in Application; main thread only.
     void setTogglePanelHook(std::function<void(const std::string&)> hook) { m_togglePanelHook = std::move(hook); }
@@ -279,7 +309,7 @@ namespace scripting {
 
     void setUnloadPluginSoundsHook(UnloadPluginSoundsHook hook) { m_unloadPluginSoundsHook = std::move(hook); }
 
-    [[nodiscard]] UnloadPluginSoundsHook unloadPluginSoundsHook() const { return m_unloadPluginSoundsHook; }
+    UnloadPluginSoundsHook unloadPluginSoundsHook() const { return m_unloadPluginSoundsHook; }
 
     // noctalia.idle.watch()/unwatch(). Wired to PluginIdleWatches in Application; invoked only on
     // the main thread (from dispatchSideEffects). The release hook runs when a Luau host dies.
@@ -303,7 +333,7 @@ namespace scripting {
 
     void setReleaseIdleWatchesHook(ReleaseIdleWatchesHook hook) { m_releaseIdleWatchesHook = std::move(hook); }
 
-    [[nodiscard]] ReleaseIdleWatchesHook releaseIdleWatchesHook() const { return m_releaseIdleWatchesHook; }
+    ReleaseIdleWatchesHook releaseIdleWatchesHook() const { return m_releaseIdleWatchesHook; }
 
     // noctalia.layer.show()/hide()/configure(). Wired to PluginLayerHost in Application; main thread
     // only (from dispatchSideEffects).
@@ -341,6 +371,7 @@ namespace scripting {
     std::unordered_map<std::string, std::string> m_wallpaperPaths;
     std::optional<std::string> m_clipboardText;
     std::shared_ptr<const std::vector<ScriptCalendarEvent>> m_calendarEvents;
+    std::shared_ptr<const ScriptMediaPlayer> m_mediaPlayer;
     std::function<void(const std::string&, bool)> m_wallpaperEnabledHook;
     std::function<void(const std::string&, const std::string&)> m_wallpaperHook;
     SetWallpaperMaskHook m_wallpaperMaskHook;

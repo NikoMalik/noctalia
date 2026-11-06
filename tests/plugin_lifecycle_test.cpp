@@ -1,6 +1,6 @@
 #include "config/config_service.h"
+#include "config/toml.h"
 #include "core/deferred_call.h"
-#include "core/toml.h"
 #include "scripting/plugin_manager.h"
 #include "scripting/plugin_registry.h"
 #include "scripting/plugin_script_watcher.h"
@@ -878,7 +878,7 @@ int main() {
          )
         && ok;
   }
-  (void)drainUntil([&] { return unloadedSoundOwners.size() >= 2; });
+  drainUntil([&] { return unloadedSoundOwners.size() >= 2; });
   ok = expect(
            writeText(
                root / "path-plugins/plugin/plugin.toml",

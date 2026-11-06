@@ -2,9 +2,7 @@
 
 #include "compositors/compositor_detect.h"
 #include "config/config_service.h"
-#include "core/files/directory_scanner.h"
 #include "core/log.h"
-#include "core/process/process.h"
 #include "core/random.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "ipc/ipc_service.h"
@@ -17,6 +15,8 @@
 #include "shell/wallpaper/wallpaper_instance.h"
 #include "shell/wallpaper/wallpaper_paths.h"
 #include "shell/wallpaper/wallpaper_shuffle_state.h"
+#include "system/directory_scanner.h"
+#include "system/process.h"
 #include "theme/theme_service.h"
 #include "ui/builders.h"
 #include "ui/controls/box.h"
@@ -44,13 +44,11 @@ namespace {
   constexpr Easing kWallpaperTransitionEasing = Easing::EaseInOutCubic;
   constexpr std::string_view kGlobalShuffleScope = "global";
 
-  [[nodiscard]] std::string outputShuffleScope(std::string_view connector) {
-    return std::string("output:").append(connector);
-  }
+  std::string outputShuffleScope(std::string_view connector) { return std::string("output:").append(connector); }
 
-  [[nodiscard]] Color defaultWallpaperColor() { return rgba(0.0F, 0.0F, 0.0F, 1.0F); }
+  Color defaultWallpaperColor() { return rgba(0.0F, 0.0F, 0.0F, 1.0F); }
 
-  [[nodiscard]] float transitionProgressForTime(float time) {
+  float transitionProgressForTime(float time) {
     return applyEasing(kWallpaperTransitionEasing, std::clamp(time, 0.0F, 1.0F));
   }
 
@@ -58,11 +56,11 @@ namespace {
     instance.transitionTime = std::clamp(time, 0.0F, 1.0F);
   }
 
-  [[nodiscard]] float transitionTargetTime(WallpaperTransitionDirection direction) {
+  float transitionTargetTime(WallpaperTransitionDirection direction) {
     return direction == WallpaperTransitionDirection::Forward ? 1.0F : 0.0F;
   }
 
-  [[nodiscard]] std::optional<WallpaperTransitionDirection>
+  std::optional<WallpaperTransitionDirection>
   directionForPath(const WallpaperInstance& instance, const std::string& path) {
     if (path == instance.currentPath) {
       return WallpaperTransitionDirection::Reverse;
@@ -129,7 +127,7 @@ namespace {
     return params;
   }
 
-  [[nodiscard]] std::optional<std::string>
+  std::optional<std::string>
   resolveWallpaperPath(std::string_view path, std::optional<std::string_view> callerCwd = std::nullopt) {
     if (path.empty()) {
       return std::nullopt;
@@ -151,7 +149,7 @@ namespace {
   };
 
   template <typename IsConnectorFn>
-  [[nodiscard]] WallpaperSetParsed parseWallpaperSetTokens(
+  WallpaperSetParsed parseWallpaperSetTokens(
       const std::vector<std::string>& tokens, IsConnectorFn&& isConnector, std::optional<std::string_view> callerCwd
   ) {
     if (tokens.size() == 1) {
@@ -523,6 +521,8 @@ void Wallpaper::onOutputChange() {
 std::vector<WallpaperChange> Wallpaper::onStateChange() {
   kLog.info("state file changed, checking for updates");
 
+  m_syncedPickValid = false;
+
   std::vector<WallpaperChange> changes = std::exchange(m_pendingStartupChanges, {});
   for (auto& inst : m_instances) {
     auto newPath = m_config->getWallpaperPath(inst->connectorName);
@@ -839,8 +839,9 @@ void Wallpaper::syncInstances() {
   std::erase_if(m_instances, [&](const auto& inst) {
     const auto* output = [&] -> const WaylandOutput* {
       for (const auto& out : outputs) {
-        if (out.name == inst->outputName)
+        if (out.name == inst->outputName) {
           return &out;
+        }
       }
       return nullptr;
     }();
@@ -1493,11 +1494,25 @@ void Wallpaper::startTransition(WallpaperInstance& instance) {
     aspectRatio = static_cast<float>(instance.surface->width()) / static_cast<float>(instance.surface->height());
   }
 
-  const auto& transitions = wpConfig.transitions;
-  const auto picked =
-      transitions[static_cast<std::size_t>(std::floor(randomFloat(0.0F, static_cast<float>(transitions.size()))))];
+  WallpaperTransition picked;
+  TransitionParams params;
+  if (wpConfig.syncTransitions && m_syncedPickValid) {
+    picked = m_syncedTransition;
+    params = m_syncedParams;
+    params.aspectRatio = aspectRatio;
+  } else {
+    const auto& transitions = wpConfig.transitions;
+    picked =
+        transitions[static_cast<std::size_t>(std::floor(randomFloat(0.0F, static_cast<float>(transitions.size()))))];
+    params = randomizeParams(picked, wpConfig.edgeSmoothness, aspectRatio);
+    if (wpConfig.syncTransitions) {
+      m_syncedTransition = picked;
+      m_syncedParams = params;
+      m_syncedPickValid = true;
+    }
+  }
   instance.activeTransition = picked;
-  instance.transitionParams = randomizeParams(picked, wpConfig.edgeSmoothness, aspectRatio);
+  instance.transitionParams = params;
   startTransitionAnimation(instance, 0.0F, WallpaperTransitionDirection::Forward);
 }
 

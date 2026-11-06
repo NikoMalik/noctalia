@@ -1055,10 +1055,11 @@ namespace noctalia::cli {
       "msg", "Send a command to the running instance", {}, {}, {}, {}, kMsgSubcommands, false,
   };
 
-  [[nodiscard]] constexpr const Command* findMsgCommand(std::string_view name) {
+  constexpr const Command* findMsgCommand(std::string_view name) {
     for (const Command& command : kMsgCmd.subcommands) {
-      if (command.name == name)
+      if (command.name == name) {
         return &command;
+      }
     }
     return nullptr;
   }

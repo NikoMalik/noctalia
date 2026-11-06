@@ -6,6 +6,7 @@
 #include "render/core/texture_manager.h"
 #include "ui/builders.h"
 #include "ui/controls/button.h"
+#include "ui/controls/image.h"
 #include "ui/palette.h"
 #include "ui/style.h"
 
@@ -379,9 +380,9 @@ void WindowSwitcherTile::layoutContent(Renderer& renderer) {
   );
   if (m_showAppIcon && targetSize != m_iconTargetSize) {
     m_iconTargetSize = targetSize;
-    (void)refreshIcon(renderer);
+    refreshIcon(renderer);
   } else if (m_showAppIcon && m_hasEntry && !m_iconPath.empty()) {
-    (void)refreshIcon(renderer);
+    refreshIcon(renderer);
   } else if (!m_showAppIcon) {
     m_icon->setVisible(false);
     m_fallbackGlyph->setVisible(false);

@@ -1,8 +1,8 @@
 #include "scripting/plugin_manifest.h"
 
+#include "config/toml.h" // IWYU pragma: keep
 #include "core/input/key_chord.h"
 #include "core/log.h"
-#include "core/toml.h" // IWYU pragma: keep
 #include "scripting/plugin_api.h"
 #include "scripting/plugin_id.h"
 #include "scripting/plugin_panel_shell.h"
@@ -539,7 +539,15 @@ namespace scripting {
             }
             const auto* layer = (*entryTable)["layer"].as_string();
             if (layer == nullptr || !isValidPanelLayer(layer->get())) {
-              error = "panel entry '" + entry.id + R"(': layer must be "top" or "overlay")";
+              error = "panel entry '" + entry.id + R"(': layer must be "follow", "top" or "overlay")";
+              return false;
+            }
+            if (panelLayerFollowsFloating(layer->get())
+                && manifest.pluginApiVersion < kPanelLayerFollowPluginApiVersion) {
+              error = "panel entry '"
+                  + entry.id
+                  + "': layer \"follow\" requires plugin_api >= "
+                  + std::to_string(kPanelLayerFollowPluginApiVersion);
               return false;
             }
             entry.panelLayerDefault = layer->get();

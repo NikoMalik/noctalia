@@ -7,7 +7,6 @@
 #include "core/deferred_call.h"
 #include "core/input/keybind_matcher.h"
 #include "core/log.h"
-#include "core/process/process.h"
 #include "dbus/accounts/accounts_service.h"
 #include "dbus/bluetooth/bluetooth_agent.h"
 #include "dbus/bluetooth/bluetooth_service.h"
@@ -56,6 +55,7 @@
 #include "scripting/plugin_ipc.h"
 #include "scripting/plugin_runtime_context.h"
 #include "scripting/script_runtime.h"
+#include "shell/app_icon_colorization_settings.h"
 #include "shell/clipboard/clipboard_panel.h"
 #include "shell/control_center/control_center_panel.h"
 #include "shell/greeter/greeter_appearance_sync.h"
@@ -70,12 +70,18 @@
 #include "shell/tray/tray_drawer_panel.h"
 #include "shell/wallpaper/panel/wallpaper_panel.h"
 #include "shell/wallpaper/wallpaper_paths.h"
+#include "shell/wayland/background_effect_globals.h"
+#include "shell/wayland/clipboard_globals.h"
+#include "shell/wayland/compositor_globals.h"
+#include "shell/wayland/layer_shell.h"
+#include "shell/wayland/output_management_globals.h"
+#include "shell/wayland/shell_globals.h"
 #include "system/brightness_service.h"
 #include "system/distro_info.h"
 #include "system/easyeffects_service.h"
 #include "system/keyboard_backlight_service.h"
+#include "system/process.h"
 #include "system/system_monitor_service.h"
-#include "ui/app_icon_colorization.h"
 #include "ui/controls/input.h"
 #include "ui/style.h"
 
@@ -137,6 +143,21 @@ void Application::scheduleNotificationShellRefresh() {
       m_panelManager.refresh();
     }
   });
+}
+
+void Application::syncLockScreenDoNotDisturb() {
+  const bool shouldEnable = m_lockScreen.isActive() && m_configService.config().lockscreen.dnd;
+  if (shouldEnable) {
+    if (!m_notificationManager.doNotDisturb()) {
+      m_lockScreenAutoDnd = true;
+      m_notificationManager.setDoNotDisturb(true);
+    }
+    return;
+  }
+  if (m_lockScreenAutoDnd) {
+    m_lockScreenAutoDnd = false;
+    m_notificationManager.setDoNotDisturb(false);
+  }
 }
 
 void Application::syncNotificationDaemon() {
@@ -462,7 +483,7 @@ void Application::syncClipboardService() {
   // stays active regardless of config so basic copy/paste keeps working in
   // every text field. The toggle only controls history retention/persistence
   // and the history UI.
-  m_wayland.setClipboardService(&m_clipboardService);
+  m_wayland.extension<ClipboardGlobals>().setClipboardService(&m_clipboardService);
   Input::setTextClipboard(&m_clipboardService);
   m_clipboardService.setHistoryRetentionEnabled(enabled);
   // Taking the selection over when its owner exits belongs to that same live
@@ -796,8 +817,30 @@ void Application::initStyleThemeAndWayland() {
     );
   }
 
+  // Bound during the initial registry roundtrip: layer surfaces, their blur capability, and the clipboard and paste
+  // services attach after connect, and head metadata must reach the outputs before the first surfaces read their
+  // configured scale.
+  m_wayland.extension<LayerShell>();
+  m_wayland.extension<BackgroundEffectGlobals>();
+  m_wayland.extension<ClipboardGlobals>();
+  m_wayland.extension<OutputManagementGlobals>();
   if (!m_wayland.connect()) {
     throw std::runtime_error("failed to connect to Wayland display");
+  }
+  {
+    const auto& compositorGlobals = m_wayland.extension<CompositorGlobals>();
+    const auto& shellGlobals = m_wayland.extension<ShellGlobals>();
+    kLog.info(
+        "shell globals layer-shell={} ext-workspace={} kde-vd={} dwl-ipc={} session-lock={} gamma-control={} "
+        "output-management={}",
+        m_wayland.extension<LayerShell>().manager() != nullptr ? "yes" : "no",
+        compositorGlobals.hasExtWorkspaceManager() ? "yes" : "no",
+        compositorGlobals.hasKdeVirtualDesktopManager() ? "yes" : "no",
+        compositorGlobals.hasDwlIpcManager() ? "yes" : "no",
+        shellGlobals.sessionLockManager() != nullptr ? "yes" : "no",
+        shellGlobals.gammaControlManager() != nullptr ? "yes" : "no",
+        m_wayland.extension<OutputManagementGlobals>().available() ? "yes" : "no"
+    );
   }
   m_compositorPlatform.initialize();
   m_screenTimeService.initialize(&m_compositorPlatform);
@@ -815,7 +858,7 @@ void Application::initStyleThemeAndWayland() {
   m_sharedTextureCache.initialize(sharedGlPtr);
   m_asyncTextureCache.initialize(sharedGlPtr);
   m_wayland.setTextInputService(&m_textInputService);
-  m_wayland.setVirtualKeyboardService(&m_virtualKeyboardService);
+  m_wayland.extension<ClipboardGlobals>().setVirtualKeyboardService(&m_virtualKeyboardService);
 
   auto bindKeybind = [this](KeybindAction action) {
     return [this, action](std::uint32_t sym, std::uint32_t modifiers) {
@@ -892,9 +935,9 @@ void Application::initWaylandCallbacks() {
     // focused output so activity on one monitor doesn't dismiss alerts on
     // another; fall back to all outputs when no focused output is known.
     if (wl_output* output = m_compositorPlatform.preferredInteractiveOutput(); output != nullptr) {
-      (void)m_compositorPlatform.clearActiveWorkspaceAlerts(output);
+      m_compositorPlatform.clearActiveWorkspaceAlerts(output);
     } else {
-      (void)m_compositorPlatform.clearActiveWorkspaceAlerts();
+      m_compositorPlatform.clearActiveWorkspaceAlerts();
     }
     m_bar.onWorkspaceChanged();
     m_dock.onWorkspaceChanged();
@@ -1118,6 +1161,7 @@ void Application::initSystemBusServices() {
             m_lockScreen.resetGracePeriod();
             // Screen time must not accumulate across suspend even when lock-before-suspend is off.
             m_screenTimeService.setSuspendPaused(true);
+            m_pluginServiceHost.onSleepChanged(true);
             // The readiness hook releases the delay inhibit after the revealed lock frames are acknowledged.
             if (m_skipLockOnNextSleep) {
               // Noctalia-initiated suspend: skip lock-before-sleep (plain Suspend or already locked).
@@ -1169,7 +1213,7 @@ void Application::initSystemBusServices() {
           m_releaseSleepDelayWhenLocked = false;
           m_screenTimeService.setSuspendPaused(false);
           if (m_configService.shouldLockBeforeSuspend() && m_logindService != nullptr) {
-            (void)m_logindService->acquireSleepDelayInhibit();
+            m_logindService->acquireSleepDelayInhibit();
           }
           kLog.info("system resumed; rechecking night light and auto theme schedules");
           // Drivers may discard glyph textures while suspended without reporting a
@@ -1185,6 +1229,7 @@ void Application::initSystemBusServices() {
             m_lockScreen.onSystemResumed();
           }
           m_weatherService.requestRefresh();
+          m_pluginServiceHost.onSleepChanged(false);
           m_gammaService.reevaluateSchedule();
           // Auto theme mode schedules with steady_clock timers, which do not advance while
           // suspended. Re-resolve so a day/night boundary crossed during sleep is applied.
@@ -1416,10 +1461,14 @@ void Application::initSystemBusServices() {
     if (m_bluetoothService != nullptr) {
       try {
         m_bluetoothAgent = std::make_unique<BluetoothAgent>(*m_systemBus);
-        m_bluetoothAgent->setRequestCallback([this,
-                                              shouldRefreshControlCenter](const BluetoothPairingRequest& /*request*/) {
-          if (shouldRefreshControlCenter()) {
+        m_bluetoothAgent->setRequestCallback([this](const BluetoothPairingRequest& /*request*/) {
+          // BlueZ cancels unanswered Agent1 requests after a few seconds, so the
+          // confirm/PIN UI must appear on its own instead of waiting for the user
+          // to already have the control center open on the bluetooth tab.
+          if (m_panelManager.isOpenPanel("control-center") && m_panelManager.isActivePanelContext("bluetooth")) {
             m_panelManager.refresh();
+          } else {
+            m_panelManager.togglePanel("control-center", PanelOpenRequest{.context = "bluetooth"});
           }
         });
       } catch (const std::exception& e) {
@@ -1616,6 +1665,7 @@ void Application::initEarlySessionBusAndTray() {
   m_trayService = std::make_unique<TrayService>(*m_bus);
   m_trayService->setChangeCallback([this] {
     m_bar.refresh();
+    m_panelManager.refreshPanel("tray-drawer");
     m_trayMenu.onTrayChanged();
     m_keyboardLayoutOsd.onTrayChanged(
         *m_trayService, m_configService.config(), m_configService.config().osd.kinds.keyboardLayout
@@ -1649,7 +1699,37 @@ void Application::initSessionBusServices() {
       };
       applyMprisConfig();
       m_configService.addReloadCallback(applyMprisConfig);
-      m_mprisService->setChangeCallback([this, shouldRefreshControlCenter] {
+      // Mirror the active player into the script API for noctalia.mediaPlayer(), like the calendar
+      // mirror below. The snapshot is stamped with the steady-clock time it was projected to, and the
+      // binding projects from there, so it is refreshed on every position sample as well.
+      auto pushMediaPlayer = [this] {
+        const auto player = m_mprisService != nullptr ? m_mprisService->activePlayer() : std::nullopt;
+        if (!player.has_value()) {
+          m_scriptApi.setMediaPlayer(nullptr);
+          return;
+        }
+        m_scriptApi.setMediaPlayer(
+            std::make_shared<const scripting::ScriptMediaPlayer>(scripting::ScriptMediaPlayer{
+                .busName = player->busName,
+                .identity = player->identity,
+                .desktopEntry = player->desktopEntry,
+                .status = player->playbackStatus,
+                .trackId = player->trackId,
+                .title = player->title,
+                .artists = player->artists,
+                .album = player->album,
+                .url = player->sourceUrl,
+                .artUrl = player->artUrl,
+                .positionMs = static_cast<double>(player->positionUs) / 1000.0,
+                .lengthMs = static_cast<double>(player->lengthUs) / 1000.0,
+                .rate = player->rate,
+                .sampledAt = std::chrono::steady_clock::now(),
+            })
+        );
+      };
+      m_mprisService->setPositionSampleCallback(pushMediaPlayer);
+      m_mprisService->setChangeCallback([this, shouldRefreshControlCenter, pushMediaPlayer] {
+        pushMediaPlayer();
         m_bar.refresh();
         m_desktopWidgetsController.requestUpdate();
         m_mediaOsd.onMprisChanged(*m_mprisService);
@@ -1665,6 +1745,7 @@ void Application::initSessionBusServices() {
     } catch (const std::exception& e) {
       kLog.warn("mpris disabled: {}", e.what());
       m_mprisService.reset();
+      m_scriptApi.setMediaPlayer(nullptr);
       m_lockScreen.setLoginBoxServices(&m_sessionActionRunner, nullptr, &m_weatherService, &m_httpClient);
       m_notificationManager.addInternal(
           "Noctalia", i18n::tr("notifications.internal.mpris-disabled"), e.what(), Urgency::Low

@@ -17,6 +17,7 @@
 #include "render/scene/input_area.h"
 #include "render/scene/input_dispatcher.h"
 #include "render/scene/node.h"
+#include "shell/wayland/layer_surface.h"
 #include "ui/builders.h"
 #include "ui/controls/box.h"
 #include "ui/controls/button.h"
@@ -25,7 +26,6 @@
 #include "ui/controls/label.h"
 #include "ui/palette.h"
 #include "ui/style.h"
-#include "wayland/layer_surface.h"
 #include "wayland/wayland_connection.h"
 #include "wayland/wayland_seat.h"
 
@@ -46,13 +46,13 @@ namespace capture {
     constexpr float kDimensionPaddingY = 4.0F;
     constexpr double kHandleMargin = 15.0; // Hitbox size in pixels
 
-    [[nodiscard]] capture::DragMode
-    hitTestSelection(double x, double y, double x0, double y0, double x1, double y1, double margin) {
+    capture::DragMode hitTestSelection(double x, double y, double x0, double y0, double x1, double y1, double margin) {
       const bool withinX = x >= x0 - margin && x <= x1 + margin;
       const bool withinY = y >= y0 - margin && y <= y1 + margin;
 
-      if (!withinX || !withinY)
+      if (!withinX || !withinY) {
         return capture::DragMode::None;
+      }
 
       const double distLeft = std::abs(x - x0);
       const double distRight = std::abs(x - x1);
@@ -66,44 +66,55 @@ namespace capture {
 
       // Narrow selections can overlap opposing hit zones; bind the pointer to the nearer edge.
       if (nearLeft && nearRight) {
-        if (distLeft < distRight)
+        if (distLeft < distRight) {
           nearRight = false;
-        else
+        } else {
           nearLeft = false;
+        }
       }
       if (nearTop && nearBottom) {
-        if (distTop < distBottom)
+        if (distTop < distBottom) {
           nearBottom = false;
-        else
+        } else {
           nearTop = false;
+        }
       }
 
-      if (nearTop && nearLeft)
+      if (nearTop && nearLeft) {
         return capture::DragMode::TopLeftCorner;
-      if (nearTop && nearRight)
+      }
+      if (nearTop && nearRight) {
         return capture::DragMode::TopRightCorner;
-      if (nearBottom && nearLeft)
+      }
+      if (nearBottom && nearLeft) {
         return capture::DragMode::BottomLeftCorner;
-      if (nearBottom && nearRight)
+      }
+      if (nearBottom && nearRight) {
         return capture::DragMode::BottomRightCorner;
+      }
 
-      if (nearTop && x >= x0 && x <= x1)
+      if (nearTop && x >= x0 && x <= x1) {
         return capture::DragMode::TopEdge;
-      if (nearBottom && x >= x0 && x <= x1)
+      }
+      if (nearBottom && x >= x0 && x <= x1) {
         return capture::DragMode::BottomEdge;
-      if (nearLeft && y >= y0 && y <= y1)
+      }
+      if (nearLeft && y >= y0 && y <= y1) {
         return capture::DragMode::LeftEdge;
-      if (nearRight && y >= y0 && y <= y1)
+      }
+      if (nearRight && y >= y0 && y <= y1) {
         return capture::DragMode::RightEdge;
+      }
 
-      if (x > x0 && x < x1 && y > y0 && y < y1)
+      if (x > x0 && x < x1 && y > y0 && y < y1) {
         return capture::DragMode::Move;
+      }
 
       return capture::DragMode::None;
     }
 
     // Right-button resize zones: outer thirds of each axis pick the matching edge or corner.
-    [[nodiscard]] capture::DragMode
+    capture::DragMode
     hitTestRegionThirds(double x, double y, double x0, double y0, double x1, double y1, double margin) {
       if (x < x0 - margin || x > x1 + margin || y < y0 - margin || y > y1 + margin) {
         return capture::DragMode::None;
@@ -116,26 +127,34 @@ namespace capture {
       const bool top = y < y0 + thirdH;
       const bool bottom = y >= y1 - thirdH;
 
-      if (left && top)
+      if (left && top) {
         return capture::DragMode::TopLeftCorner;
-      if (right && top)
+      }
+      if (right && top) {
         return capture::DragMode::TopRightCorner;
-      if (left && bottom)
+      }
+      if (left && bottom) {
         return capture::DragMode::BottomLeftCorner;
-      if (right && bottom)
+      }
+      if (right && bottom) {
         return capture::DragMode::BottomRightCorner;
-      if (top)
+      }
+      if (top) {
         return capture::DragMode::TopEdge;
-      if (bottom)
+      }
+      if (bottom) {
         return capture::DragMode::BottomEdge;
-      if (left)
+      }
+      if (left) {
         return capture::DragMode::LeftEdge;
-      if (right)
+      }
+      if (right) {
         return capture::DragMode::RightEdge;
+      }
       return capture::DragMode::None;
     }
 
-    [[nodiscard]] std::uint32_t cursorShapeForDragMode(capture::DragMode mode) {
+    std::uint32_t cursorShapeForDragMode(capture::DragMode mode) {
       switch (mode) {
       case capture::DragMode::TopEdge:
       case capture::DragMode::BottomEdge:
@@ -156,7 +175,7 @@ namespace capture {
       }
     }
 
-    [[nodiscard]] const WaylandOutput* findOutput(const WaylandConnection& wayland, wl_output* output) {
+    const WaylandOutput* findOutput(const WaylandConnection& wayland, wl_output* output) {
       for (const auto& entry : wayland.outputs()) {
         if (entry.output == output) {
           return &entry;
@@ -165,10 +184,9 @@ namespace capture {
       return nullptr;
     }
 
-    [[nodiscard]] LayerShellKeyboard overlayKeyboardMode() { return LayerShellKeyboard::Exclusive; }
+    LayerShellKeyboard overlayKeyboardMode() { return LayerShellKeyboard::Exclusive; }
 
-    [[nodiscard]] const ScreencopyImage*
-    frozenImageForOutput(const std::vector<FrozenScreenshot>& screenshots, wl_output* output) {
+    const ScreencopyImage* frozenImageForOutput(const std::vector<FrozenScreenshot>& screenshots, wl_output* output) {
       for (const auto& entry : screenshots) {
         if (entry.output == output) {
           return &entry.image.image;
@@ -177,7 +195,7 @@ namespace capture {
       return nullptr;
     }
 
-    [[nodiscard]] wl_output* outputAtGlobalPoint(const WaylandConnection& wayland, double globalX, double globalY) {
+    wl_output* outputAtGlobalPoint(const WaylandConnection& wayland, double globalX, double globalY) {
       for (const auto& out : wayland.outputs()) {
         if (out.output == nullptr || out.logicalWidth <= 0 || out.logicalHeight <= 0) {
           continue;
@@ -192,7 +210,7 @@ namespace capture {
       return nullptr;
     }
 
-    [[nodiscard]] std::string outputPickerLabel(const WaylandOutput& output) {
+    std::string outputPickerLabel(const WaylandOutput& output) {
       if (!output.connectorName.empty()) {
         return output.connectorName;
       }
@@ -576,12 +594,14 @@ namespace capture {
       });
     } else {
       input->setOnPress([this, output = inst.output](const InputArea::PointerData& data) {
-        if (data.button != BTN_LEFT && data.button != BTN_RIGHT)
+        if (data.button != BTN_LEFT && data.button != BTN_RIGHT) {
           return;
+        }
 
         if (!data.pressed) {
-          if (!m_dragging || data.button != m_dragButton)
+          if (!m_dragging || data.button != m_dragButton) {
             return;
+          }
           m_dragging = false;
           m_dragButton = 0;
           // completeSelection() tears down surfaces; defer past InputDispatcher::pointerButton.
@@ -589,12 +609,14 @@ namespace capture {
           return;
         }
 
-        if (m_dragging)
+        if (m_dragging) {
           return;
+        }
 
         const auto* out = findOutput(*m_wayland, output);
-        if (out == nullptr)
+        if (out == nullptr) {
           return;
+        }
 
         const double globalX = static_cast<double>(out->logicalX) + static_cast<double>(data.localX);
         const double globalY = static_cast<double>(out->logicalY) + static_cast<double>(data.localY);
@@ -702,15 +724,17 @@ namespace capture {
         applyCursorShape(cursorShapeForDragMode(m_dragMode));
         updateSelectionVisuals();
         for (auto& instance : m_instances) {
-          if (instance->surface != nullptr)
+          if (instance->surface != nullptr) {
             instance->surface->requestRedraw();
+          }
         }
       });
 
       input->setOnMotion([this, output = inst.output, inputPtr = input.get()](const InputArea::PointerData& data) {
         const auto* out = findOutput(*m_wayland, output);
-        if (out == nullptr)
+        if (out == nullptr) {
           return;
+        }
 
         const double globalX = static_cast<double>(out->logicalX) + static_cast<double>(data.localX);
         const double globalY = static_cast<double>(out->logicalY) + static_cast<double>(data.localY);
@@ -769,8 +793,9 @@ namespace capture {
 
         updateSelectionVisuals();
         for (auto& instance : m_instances) {
-          if (instance->surface != nullptr)
+          if (instance->surface != nullptr) {
             instance->surface->requestRedraw();
+          }
         }
       });
     }
@@ -974,42 +999,27 @@ namespace capture {
     return false;
   }
 
-  bool ScreenshotRegionOverlay::onKeyboardEvent(const KeyboardEvent& event) {
-    if (!m_active || !event.pressed || m_wayland == nullptr) {
-      return false;
+  void ScreenshotRegionOverlay::onKeyboardEvent(const KeyboardEvent& event) {
+    if (!m_active) {
+      return;
     }
 
-    wl_surface* const kbSurface = m_wayland->lastKeyboardSurface();
-    bool onOverlay = false;
-    for (const auto& inst : m_instances) {
-      if (inst != nullptr && inst->surface != nullptr && inst->surface->wlSurface() == kbSurface) {
-        onOverlay = true;
-        break;
-      }
+    // Whichever Noctalia surface holds the keyboard: on niri an older exclusive panel such as the
+    // launcher keeps it under the overlay, and the keys must still act here, not there (#4641).
+    if (KeybindMatcher::matches(KeybindAction::Cancel, event.sym, event.modifiers)) {
+      cancelSelection();
+      return;
     }
-    if (!onOverlay) {
-      return false;
+    if (!m_confirming) {
+      return;
     }
-
-    if (!KeybindMatcher::matches(KeybindAction::Cancel, event.sym, event.modifiers)) {
-      if (m_confirming) {
-        if (KeybindMatcher::matches(KeybindAction::Copy, event.sym, event.modifiers)) {
-          confirmPendingSelection(ConfirmAction::ForceClipboard);
-          return true;
-        }
-        if (KeybindMatcher::matches(KeybindAction::Save, event.sym, event.modifiers)) {
-          confirmPendingSelection(ConfirmAction::ForceSave);
-          return true;
-        }
-        if (KeySymbol::isEnterOrSpace(event.sym)) {
-          confirmPendingSelection(ConfirmAction::None);
-          return true;
-        }
-      }
-      return false;
+    if (KeybindMatcher::matches(KeybindAction::Copy, event.sym, event.modifiers)) {
+      confirmPendingSelection(ConfirmAction::ForceClipboard);
+    } else if (KeybindMatcher::matches(KeybindAction::Save, event.sym, event.modifiers)) {
+      confirmPendingSelection(ConfirmAction::ForceSave);
+    } else if (KeySymbol::isEnterOrSpace(event.sym)) {
+      confirmPendingSelection(ConfirmAction::None);
     }
-    cancelSelection();
-    return true;
   }
 
   void ScreenshotRegionOverlay::abortWithError(const std::string& message) {

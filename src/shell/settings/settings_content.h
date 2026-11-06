@@ -49,6 +49,7 @@ namespace settings {
     bool showAdvanced = false;
     bool showOverriddenOnly = false;
     std::vector<SelectOption> batteryDeviceOptions;
+    std::vector<SelectOption> availableOutputs;
 
     std::string& editingWidgetName;
     std::string& editingCapsuleGroupId;
@@ -58,7 +59,7 @@ namespace settings {
     std::string& renamingWidgetName;
     std::string& pendingGestureKey;
     std::string& pendingGestureVerb;
-    std::string& actionsExpandedFor;
+    std::unordered_map<std::string, std::unordered_set<std::string>>& expandedWidgetGroups;
     std::unordered_map<std::string, std::unordered_set<std::string>>& expandedGroupsByPage;
     // Fixed page title row above the group pills, null when no host exists.
     Flex* pageTitleRow = nullptr;
