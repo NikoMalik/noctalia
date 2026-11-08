@@ -901,6 +901,7 @@ struct NotificationConfig {
   bool showAppName = true;
   bool colorizeIcons = false;
   bool showActions = true;
+  bool showProgressBar = true;
   bool groupByApp = true;
   std::string position = "top_right";
   std::string layer = "top"; // top | overlay
@@ -1282,6 +1283,7 @@ struct ShellConfig {
     std::string pipeCommand;
     std::string directory;       // empty = XDG Pictures directory
     std::string filenamePattern; // empty = screenshot_%Y%m%d_%H%M%S
+    bool appendModeSuffix = true;
     ScreenshotFormat format = ScreenshotFormat::Png;
     std::int32_t quality = 90; // 1..100; ignored for PNG, 100 = lossless WebP/JPEG XL
     ScreenshotRegionModifier regionModifier = ScreenshotRegionModifier::None;
@@ -1628,6 +1630,7 @@ struct KeybindsConfig {
   std::vector<KeyChord> deleteEntry;
   std::vector<KeyChord> copy;
   std::vector<KeyChord> save;
+  std::vector<KeyChord> selectAll;
 
   bool operator==(const KeybindsConfig&) const = default;
 };
