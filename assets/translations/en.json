@@ -1644,6 +1644,7 @@
       },
       "lockscreen": {
         "transition": {
+          "crt": "CRT",
           "diamond": "Diamond",
           "disc": "Disc",
           "fade": "Fade",
@@ -1784,6 +1785,7 @@
           "random": "Random"
         },
         "transition": {
+          "crt": "CRT",
           "diamond": "Diamond",
           "disc": "Disc",
           "fade": "Fade",
@@ -2551,6 +2553,14 @@
           "description": "Close popups, dismiss panels, or abort the current operation",
           "label": "Cancel"
         },
+        "category-next": {
+          "description": "Reveal launcher categories when hidden, then cycle to the next category or Control Center tab",
+          "label": "Category Next"
+        },
+        "category-previous": {
+          "description": "Reveal launcher categories when hidden, then cycle to the previous category or Control Center tab",
+          "label": "Category Previous"
+        },
         "copy": {
           "description": "Copy the current selection or item",
           "label": "Copy"
@@ -2819,10 +2829,6 @@
         "home-avatar-border": {
           "description": "Show the accent ring around the Home tab avatar",
           "label": "Show Avatar Border"
-        },
-        "home-circular-avatar": {
-          "description": "Use a circular avatar; disable to follow the shell's corner roundness",
-          "label": "Circular Avatar"
         },
         "home-session-button": {
           "description": "Show the session-actions button in the Home tab header",
@@ -3425,6 +3431,10 @@
           "description": "Path to a custom avatar image; large images are cropped and resized automatically",
           "label": "Avatar Path",
           "placeholder": "/path/to/avatar.png"
+        },
+        "circular-avatar": {
+          "description": "Use circular avatars in the launcher and Control Center; disable to follow the shell's corner roundness",
+          "label": "Circular Avatar"
         },
         "clipboard-auto-paste": {
           "description": "Automatically paste clipboard selections",

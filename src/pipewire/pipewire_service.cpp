@@ -43,6 +43,12 @@
 #include <string_view>
 #include <tuple>
 
+// SPA's parse/build macros (spa_pod_parse_object, spa_pod_builder_add_object) expand to GNU
+// statement expressions in this file; Clang reports them under -Wpedantic, GCC does not.
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
+#endif
+
 namespace {
 
   // Volume change thresholds.
@@ -1584,8 +1590,14 @@ void PipeWireService::onNodeInfo(std::uint32_t id, const pw_node_info* info) {
     rebuildState();
   }
 
-  // Request Props param enumeration if changes flagged
+  // Refresh readable parameters when their info changes.
   if ((info->change_mask & PW_NODE_CHANGE_MASK_PARAMS) != 0) {
+    // Route parameters enumerate the current assignments, including port switches and removals.
+    if (!nd.routes.empty()) {
+      nd.routes.clear();
+      recomputeEffectiveMute(nd);
+      rebuildState();
+    }
     nd.hasReadablePropsParam = false;
     nd.hasReadableRouteParam = false;
     for (std::uint32_t i = 0; i < info->n_params; ++i) {
@@ -1752,6 +1764,16 @@ void PipeWireService::onDeviceInfo(std::uint32_t id, const pw_device_info* info)
   }
 
   if ((info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) != 0) {
+    // A Route refresh replaces the active assignments; physical port indices can change.
+    if (!it->second.routes.empty()) {
+      it->second.routes.clear();
+      for (auto& [nid, node] : m_nodes) {
+        if (node != nullptr && node->deviceId == id) {
+          recomputeEffectiveMute(*node);
+        }
+      }
+      rebuildState();
+    }
     for (std::uint32_t i = 0; i < info->n_params; ++i) {
       if (info->params[i].id == SPA_PARAM_Route && (info->params[i].flags & SPA_PARAM_INFO_READ) != 0) {
         pw_device_enum_params(it->second.proxy, 0, SPA_PARAM_Route, 0, UINT32_MAX, nullptr);
